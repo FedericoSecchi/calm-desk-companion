@@ -40,20 +40,11 @@ export const FloatingTimer = () => {
   const isOnRemindersPage = pathname.endsWith("/reminders") || pathname.includes("/app/reminders");
   const shouldShow = isRunning && !isOnRemindersPage;
 
-  // Determine fixed position based on current route
-  // Positions are chosen to avoid overlapping with content (cards, charts, buttons)
+  // Consistent positioning: layout space is reserved in AppLayout
+  // Desktop: bottom-right (content has padding-right reserved)
+  // Mobile: bottom-center (content has padding-bottom reserved)
   const getPositionClasses = () => {
-    if (pathname.includes("/exercises")) {
-      return "top-20 right-6"; // Top-right for Exercises (below header, avoids overlap)
-    } else if (pathname.includes("/pain")) {
-      return "top-24 right-6"; // Top-right for Pain (avoids charts at bottom)
-    } else if (pathname.includes("/settings")) {
-      return "bottom-6 right-6"; // Bottom-right for Settings (avoids controls at top)
-    } else if (pathname === "/app" || pathname.endsWith("/app") || pathname.includes("/dashboard")) {
-      return "top-20 right-6"; // Top-right for Dashboard (below header, avoids stats grid)
-    } else {
-      return "bottom-6 right-6"; // Default: bottom-right for other sections
-    }
+    return "bottom-6 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-6"; // Mobile: center, Desktop: right
   };
 
   const presetConfig = getPresetConfig(selectedPreset);
