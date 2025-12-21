@@ -72,11 +72,11 @@ export const FloatingTimer = () => {
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ 
             opacity: 1, 
-            scale: isDragging ? 1.03 : 1,
+            scale: isDragging ? 1.02 : 1,
             y: 0,
           }}
           exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: 0.5 }}
           drag
           dragMomentum={false}
           dragElastic={0}
@@ -91,14 +91,12 @@ export const FloatingTimer = () => {
           className={cn(
             "fixed bottom-6 right-6 z-[2147483647]",
             "w-[260px] max-w-[90%] sm:max-w-[320px]",
-            "bg-[rgba(17,17,17,0.92)] backdrop-blur-[8px]",
-            "rounded-2xl border border-white/8",
-            "px-4 py-3.5",
-            "shadow-[0_10px_30px_rgba(0,0,0,0.35)]",
+            "bg-card rounded-2xl border border-border/50",
+            "p-4",
+            "shadow-soft",
             "cursor-grab active:cursor-grabbing",
             "select-none",
-            "font-smoothing-antialiased",
-            isDragging && "shadow-[0_15px_40px_rgba(0,0,0,0.45)]"
+            isDragging && "shadow-medium"
           )}
           onClick={() => navigate("/app/reminders")}
           role="button"
@@ -112,7 +110,7 @@ export const FloatingTimer = () => {
         >
           {/* Drag Handle */}
           <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-30">
-            <GripVertical className="h-3 w-3 text-foreground" />
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
           </div>
 
           {/* Top Row: Phase Icon + Label */}
@@ -124,24 +122,19 @@ export const FloatingTimer = () => {
               )}
             >
               {isWork ? (
-                <Briefcase className="h-4 w-4 text-primary opacity-70" />
+                <Briefcase className="h-4 w-4 text-primary" />
               ) : (
-                <Coffee className="h-4 w-4 text-secondary opacity-70" />
+                <Coffee className="h-4 w-4 text-secondary" />
               )}
             </div>
-            <span className="text-xs uppercase tracking-wider opacity-65 font-medium">
+            <span className="text-xs text-muted-foreground">
               {phaseLabel}
             </span>
           </div>
 
           {/* Middle: Big Timer */}
           <div className="mb-3">
-            <p
-              className={cn(
-                "text-[28px] font-semibold leading-none tracking-[-0.02em]",
-                isWork ? "text-primary" : "text-secondary"
-              )}
-            >
+            <p className="text-2xl font-heading text-foreground">
               {formatTime(timeRemaining)}
             </p>
           </div>
@@ -151,7 +144,7 @@ export const FloatingTimer = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 hover:bg-white/8"
+              className="h-8 w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 toggleTimer();
@@ -167,7 +160,7 @@ export const FloatingTimer = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 hover:bg-white/8"
+              className="h-8 w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 skipToNextPhase();
