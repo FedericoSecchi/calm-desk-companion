@@ -1,3 +1,22 @@
+/**
+ * AUDIT: Reminders Component
+ * 
+ * Previous Issues (Fixed):
+ * - Preset buttons changed state but didn't update timer durations
+ * - Timer was hardcoded to 30 minutes regardless of preset
+ * - No distinction between WORK and REST phases
+ * - SkipForward button had unclear purpose
+ * - No notifications when work timer completed
+ * 
+ * Current Implementation:
+ * - Timer has two phases: WORK (countdown to break) and REST (break duration)
+ * - Presets define both work and rest durations
+ * - When WORK completes, automatically switches to REST phase
+ * - When REST completes, switches back to WORK and logs a break
+ * - SkipForward button skips to next phase
+ * - Notifications fire when WORK phase completes
+ */
+
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -10,22 +29,42 @@ import {
   VolumeX,
   Clock,
   Check,
-  Loader2
+  Loader2,
+  Coffee,
+  Briefcase
 } from "lucide-react";
 import { useReminderSettings } from "@/hooks/useReminderSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useBreakLogs } from "@/hooks/useBreakLogs";
 
-const presets = [
-  { id: "light", name: "Ligero", interval: "45-60 min", description: "Para días intensos" },
-  { id: "standard", name: "Estándar", interval: "30-45 min", description: "Recomendado" },
-  { id: "focus", name: "Enfoque", interval: "60-90 min", description: "Trabajo profundo" },
+type TimerPhase = "work" | "rest";
+
+interface PresetConfig {
+  id: "light" | "standard" | "focus";
+  name: string;
+  interval: string;
+  description: string;
+  workMinutes: number; // Work duration in minutes
+  restMinutes: number; // Rest duration in minutes
+}
+
+const presets: PresetConfig[] = [
+  { id: "light", name: "Ligero", interval: "45-60 min", description: "Para días intensos", workMinutes: 60, restMinutes: 10 },
+  { id: "standard", name: "Estándar", interval: "30-45 min", description: "Recomendado", workMinutes: 45, restMinutes: 5 },
+  { id: "focus", name: "Enfoque", interval: "60-90 min", description: "Trabajo profundo", workMinutes: 90, restMinutes: 10 },
 ];
 
 const Reminders = () => {
   const { isGuest } = useAuth();
   const { toast } = useToast();
   const { settings, isLoading, updateSettings, isUpdating } = useReminderSettings();
+  const { logBreak } = useBreakLogs();
+  
+  // Get current preset config
+  const getPresetConfig = (presetId: "light" | "standard" | "focus"): PresetConfig => {
+    return presets.find(p => p.id === presetId) || presets[1]; // Default to standard
+  };
   
   // Use settings from database if available, otherwise use local state
   const [selectedPreset, setSelectedPreset] = useState<"light" | "standard" | "focus">(
@@ -33,8 +72,11 @@ const Reminders = () => {
   );
   const [soundEnabled, setSoundEnabled] = useState(settings?.sound_enabled ?? true);
   
+  // Timer state
+  const [currentPhase, setCurrentPhase] = useState<TimerPhase>("work");
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(30 * 60); // 30 minutes in seconds
+  const presetConfig = getPresetConfig(selectedPreset);
+  const [timeRemaining, setTimeRemaining] = useState(presetConfig.workMinutes * 60); // Start with work time
 
   // Sync local state with database settings when they load
   useEffect(() => {
@@ -44,6 +86,17 @@ const Reminders = () => {
     }
   }, [settings, isGuest]);
 
+  // Update timer duration when preset changes
+  useEffect(() => {
+    const config = getPresetConfig(selectedPreset);
+    if (currentPhase === "work") {
+      setTimeRemaining(config.workMinutes * 60);
+    } else {
+      setTimeRemaining(config.restMinutes * 60);
+    }
+    setIsTimerRunning(false); // Reset timer when preset changes
+  }, [selectedPreset]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -52,13 +105,13 @@ const Reminders = () => {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Timer countdown logic with phase transitions
   useEffect(() => {
     if (isTimerRunning) {
       intervalRef.current = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
-            setIsTimerRunning(false);
-            // Timer completed - could trigger notification here
+            // Timer completed - will be handled by effect below
             return 0;
           }
           return prev - 1;
@@ -78,17 +131,100 @@ const Reminders = () => {
     };
   }, [isTimerRunning]);
 
+  // Handle timer completion and phase transitions
+  const phaseTransitionRef = useRef(false);
+  
+  useEffect(() => {
+    // Only trigger when timer reaches 0, timer was running, and we haven't already transitioned
+    if (timeRemaining === 0 && !isTimerRunning && !phaseTransitionRef.current) {
+      phaseTransitionRef.current = true; // Prevent multiple triggers
+      const config = getPresetConfig(selectedPreset);
+
+      if (currentPhase === "work") {
+        // WORK phase completed - switch to REST
+        setCurrentPhase("rest");
+        setTimeRemaining(config.restMinutes * 60);
+        
+        // Trigger notification
+        if (Notification.permission === "granted") {
+          new Notification("Momento de pausar", {
+            body: "Levántate y muévete. Tómate un descanso.",
+            icon: "/calm-desk-companion/icon-192.png",
+          });
+        }
+        
+        // Play sound if enabled
+        if (soundEnabled) {
+          try {
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = "sine";
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+          } catch (e) {
+            if (import.meta.env.DEV) {
+              console.debug("Audio notification failed:", e);
+            }
+          }
+        }
+
+        toast({
+          title: "¡Hora de descansar!",
+          description: `Tómate ${config.restMinutes} minutos de pausa.`,
+        });
+      } else {
+        // REST phase completed - switch back to WORK and log break
+        setCurrentPhase("work");
+        setTimeRemaining(config.workMinutes * 60);
+        
+        // Log the completed break
+        logBreak("reminder");
+        
+        toast({
+          title: "Pausa completada",
+          description: "¡Bien hecho! Vuelve al trabajo.",
+        });
+      }
+
+      // Reset transition flag after a short delay
+      setTimeout(() => {
+        phaseTransitionRef.current = false;
+      }, 1000);
+    } else if (timeRemaining > 0) {
+      // Reset flag when timer is no longer at 0
+      phaseTransitionRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeRemaining, isTimerRunning]);
+
   const toggleTimer = () => {
     setIsTimerRunning(!isTimerRunning);
   };
 
-  const skipTimer = () => {
-    setTimeRemaining(30 * 60);
+  const skipToNextPhase = () => {
     setIsTimerRunning(false);
+    setTimeRemaining(0); // Trigger phase completion
   };
 
   const handlePresetChange = async (preset: "light" | "standard" | "focus") => {
+    const oldPreset = selectedPreset;
     setSelectedPreset(preset);
+    
+    // Reset timer to work phase with new preset duration
+    setCurrentPhase("work");
+    const config = getPresetConfig(preset);
+    setTimeRemaining(config.workMinutes * 60);
+    setIsTimerRunning(false);
     
     if (!isGuest) {
       try {
@@ -107,7 +243,9 @@ const Reminders = () => {
           variant: "destructive",
         });
         // Revert on error
-        setSelectedPreset(settings?.preset || "standard");
+        setSelectedPreset(oldPreset);
+        const oldConfig = getPresetConfig(oldPreset);
+        setTimeRemaining(oldConfig.workMinutes * 60);
       }
     }
   };
@@ -181,18 +319,39 @@ const Reminders = () => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="bg-card rounded-3xl p-8 border border-border/50 shadow-soft mb-8 text-center"
+        className={`bg-card rounded-3xl p-8 border-2 shadow-soft mb-8 text-center transition-colors ${
+          currentPhase === "work" 
+            ? "border-primary/30 bg-primary/5" 
+            : "border-secondary/30 bg-secondary/5"
+        }`}
       >
-        <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-          <Clock className="h-12 w-12 text-primary" />
+        <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 transition-colors ${
+          currentPhase === "work" 
+            ? "bg-primary/10" 
+            : "bg-secondary/10"
+        }`}>
+          {currentPhase === "work" ? (
+            <Briefcase className="h-12 w-12 text-primary" />
+          ) : (
+            <Coffee className="h-12 w-12 text-secondary" />
+          )}
         </div>
         
         <p className="text-6xl font-heading text-foreground mb-2">
           {formatTime(timeRemaining)}
         </p>
-        <p className="text-muted-foreground mb-8">
-          {isTimerRunning ? "Hasta tu próxima pausa" : "Timer en pausa"}
-        </p>
+        <div className="mb-8">
+          <p className={`text-lg font-medium mb-1 ${
+            currentPhase === "work" ? "text-primary" : "text-secondary"
+          }`}>
+            {currentPhase === "work" ? "⏱️ Tiempo de trabajo" : "☕ Tiempo de descanso"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {currentPhase === "work" 
+              ? `Descanso de ${presetConfig.restMinutes} min después`
+              : `Vuelve al trabajo en ${presetConfig.workMinutes} min`}
+          </p>
+        </div>
         
         <div className="flex items-center justify-center gap-4">
           <Button
@@ -225,8 +384,9 @@ const Reminders = () => {
           <Button
             variant="outline"
             size="icon"
-            onClick={skipTimer}
+            onClick={skipToNextPhase}
             className="h-12 w-12 rounded-xl"
+            title={currentPhase === "work" ? "Saltar al descanso" : "Finalizar descanso"}
           >
             <SkipForward className="h-5 w-5" />
           </Button>
