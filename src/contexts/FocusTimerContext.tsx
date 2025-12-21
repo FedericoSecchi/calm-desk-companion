@@ -216,6 +216,39 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     }
   }, [soundEnabled]);
 
+  // Countdown alert tracking
+  const countdownAlertsRef = useRef<Set<number>>(new Set());
+  const lastCountdownSecondRef = useRef<number>(-1);
+
+  // Helper to play subtle countdown sound
+  const playCountdownSound = useCallback((seconds: number) => {
+    if (!soundEnabled) return;
+    
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Different frequency based on urgency (higher = more urgent)
+      oscillator.frequency.value = seconds <= 3 ? 1000 : 600;
+      oscillator.type = "sine";
+      
+      // Very subtle sound for countdown
+      gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (e) {
+      if (import.meta.env.DEV) {
+        console.debug("Countdown sound failed:", e);
+      }
+    }
+  }, [soundEnabled]);
+
   // Timer countdown logic - uses Date.now() diff for accuracy
   useEffect(() => {
     if (isRunning && timeRemaining > 0) {
@@ -225,11 +258,31 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
       intervalRef.current = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         const newRemaining = Math.max(0, startRemaining - elapsed);
+        const currentSecond = Math.floor(newRemaining);
         
         setTimeRemaining(newRemaining);
         
+        // Countdown alerts at 10, 5, 3, 2, 1 seconds
+        const alertSeconds = [10, 5, 3, 2, 1];
+        if (alertSeconds.includes(currentSecond) && currentSecond !== lastCountdownSecondRef.current) {
+          lastCountdownSecondRef.current = currentSecond;
+          playCountdownSound(currentSecond);
+          
+          // Show subtle toast for final seconds (1-3)
+          if (currentSecond <= 3) {
+            toast({
+              title: `${currentSecond} segundo${currentSecond > 1 ? 's' : ''}`,
+              description: currentSecond === 1 
+                ? (currentPhase === "work" ? "¡Momento de descansar!" : "¡Vuelve al trabajo!")
+                : undefined,
+              duration: 1000,
+            });
+          }
+        }
+        
         if (newRemaining === 0) {
           setIsRunning(false);
+          lastCountdownSecondRef.current = -1; // Reset for next phase
         }
       }, 100); // Check every 100ms for smoother updates
     } else {
@@ -237,6 +290,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      lastCountdownSecondRef.current = -1; // Reset when paused
     }
 
     return () => {
@@ -244,7 +298,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isRunning, timeRemaining]);
+  }, [isRunning, timeRemaining, currentPhase, playCountdownSound, toast]);
 
   // Handle timer completion and phase transitions
   useEffect(() => {

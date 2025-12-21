@@ -1,22 +1,32 @@
 /**
  * FloatingTimer Component
  * 
- * Persistent floating timer UI that appears when timer is running.
- * Visible across all /app routes to maintain focus continuity.
+ * Persistent floating timer UI that appears when timer is active.
+ * Visible across /app routes (except /app/reminders) to maintain focus continuity.
  * 
  * Features:
- * - Fixed position (bottom-right on desktop, bottom-center on mobile)
+ * - Draggable position (persists during session)
  * - Shows current phase, remaining time, and icon
  * - Controls: pause/resume and skip phase
  * - Clicking navigates to /app/reminders for full controls
+ * - Hidden on /app/reminders page (full timer UI is there)
+ * - Only visible when timer is active (has time remaining)
  */
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, SkipForward, Briefcase, Coffee } from "lucide-react";
+import { Play, Pause, SkipForward, Briefcase, Coffee, GripVertical } from "lucide-react";
 import { useFocusTimer } from "@/contexts/FocusTimerContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useState, useEffect, useRef } from "react";
+
+const POSITION_STORAGE_KEY = "calmo_floating_timer_position";
+
+interface SavedPosition {
+  x: number;
+  y: number;
+}
 
 export const FloatingTimer = () => {
   const {
@@ -30,38 +40,129 @@ export const FloatingTimer = () => {
     selectedPreset,
   } = useFocusTimer();
   const navigate = useNavigate();
+  const location = useLocation();
   const presetConfig = getPresetConfig(selectedPreset);
 
-  // Only show when timer has time remaining (running or paused)
-  // Hide when timer is at 0 and not running (initial state)
-  if (timeRemaining === 0 && !isRunning) {
+  // Visibility rules:
+  // 1. NOT visible on /app/reminders (full timer UI is there)
+  // 2. NOT visible when timer is not active (timeRemaining === 0 && !isRunning)
+  // 3. Visible on other /app routes when timer is active
+  const isOnRemindersPage = location.pathname === "/app/reminders" || location.pathname === "/calm-desk-companion/app/reminders";
+  const isTimerActive = timeRemaining > 0 || isRunning;
+  
+  if (isOnRemindersPage || !isTimerActive) {
     return null;
   }
 
   const isWork = currentPhase === "work";
   const phaseLabel = isWork ? "Trabajo" : "Descanso";
-  const phaseIcon = isWork ? Briefcase : Coffee;
+  
+  // Drag functionality with position persistence
+  const [isDragging, setIsDragging] = useState(false);
+  const [hasCustomPosition, setHasCustomPosition] = useState(false);
+  
+  // Load saved position
+  const getSavedPosition = (): SavedPosition | null => {
+    try {
+      const saved = localStorage.getItem(POSITION_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.x !== undefined && parsed.y !== undefined) {
+          return { x: parsed.x, y: parsed.y };
+        }
+      }
+    } catch (e) {
+      if (import.meta.env.DEV) {
+        console.debug("Failed to load timer position:", e);
+      }
+    }
+    return null;
+  };
+  
+  const savedPosition = getSavedPosition();
+  
+  // Initialize motion values with saved position or 0
+  const x = useMotionValue(savedPosition?.x || 0);
+  const y = useMotionValue(savedPosition?.y || 0);
+
+  // Check if we have a saved position
+  useEffect(() => {
+    setHasCustomPosition(savedPosition !== null);
+  }, [savedPosition]);
+
+  // Save position when dragging ends
+  const handleDragEnd = (event: any, info: any) => {
+    setIsDragging(false);
+    const currentX = x.get();
+    const currentY = y.get();
+    const newX = currentX + info.offset.x;
+    const newY = currentY + info.offset.y;
+    
+    x.set(newX);
+    y.set(newY);
+    
+    const newPosition = { x: newX, y: newY };
+    setHasCustomPosition(true);
+    localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(newPosition));
+  };
 
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
+        animate={{ 
+          opacity: 1, 
+          y: 0, 
+          scale: isDragging ? 1.05 : 1,
+        }}
         exit={{ opacity: 0, y: 20, scale: 0.9 }}
         transition={{ duration: 0.3 }}
+        drag
+        dragMomentum={false}
+        dragElastic={0}
+        dragConstraints={
+          typeof window !== "undefined"
+            ? {
+                left: -window.innerWidth + 400,
+                right: window.innerWidth - 400,
+                top: -window.innerHeight + 200,
+                bottom: window.innerHeight - 200,
+              }
+            : undefined
+        }
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={handleDragEnd}
+        style={{
+          ...(hasCustomPosition ? {
+            x,
+            y,
+            left: "auto",
+            right: "auto",
+            bottom: "auto",
+            top: "auto",
+          } : {}),
+        }}
         className={cn(
           "fixed z-50",
-          "bottom-4 right-4 lg:bottom-6 lg:right-6", // Desktop: bottom-right
+          !hasCustomPosition && "bottom-4 right-4 lg:bottom-6 lg:right-6", // Default position
+          !hasCustomPosition && "mx-auto lg:mx-0", // Center on mobile if default
           "w-[calc(100vw-2rem)] max-w-sm", // Mobile: full width with padding
-          "mx-auto lg:mx-0", // Center on mobile
           "bg-card/95 backdrop-blur-sm",
           "rounded-2xl border-2 shadow-lg",
           "p-4",
+          "cursor-move",
+          "select-none", // Prevent text selection while dragging
           isWork
             ? "border-primary/30 bg-primary/5"
-            : "border-secondary/30 bg-secondary/5"
+            : "border-secondary/30 bg-secondary/5",
+          isDragging && "shadow-2xl"
         )}
-        onClick={() => navigate("/app/reminders")}
+        onClick={(e) => {
+          // Only navigate if not dragging
+          if (!isDragging) {
+            navigate("/app/reminders");
+          }
+        }}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
@@ -72,6 +173,11 @@ export const FloatingTimer = () => {
         aria-label={`Timer ${phaseLabel}: ${formatTime(timeRemaining)} restantes. Click para ver controles completos.`}
       >
         <div className="flex items-center gap-3">
+          {/* Drag Handle */}
+          <div className="shrink-0 text-muted-foreground/50 cursor-grab active:cursor-grabbing">
+            <GripVertical className="h-4 w-4" />
+          </div>
+
           {/* Phase Icon */}
           <div
             className={cn(
