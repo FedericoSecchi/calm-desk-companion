@@ -74,12 +74,45 @@ The Reminders feature currently works with:
 - ✅ Preset selection persistence (`reminder_settings.preset`)
 - ✅ Sound preference persistence (`reminder_settings.sound_enabled`)
 - ✅ Break logging (`break_logs` table)
+- ✅ Timer state persistence (localStorage, works in Guest and Auth modes)
 
 **Not Implemented (By Design):**
-- ❌ Timer state persistence (ephemeral by design)
+- ❌ Timer state persistence in Supabase (localStorage sufficient for single-device)
 - ❌ Custom durations (presets are sufficient)
 - ❌ Background notification scheduling (in-app only)
 - ❌ Reminder-specific statistics (dashboard stats cover this)
+- ❌ Exercise recommendation backend (UI placeholder exists, backend TODO)
+
+## Updated Requirements (Latest Round)
+
+### Timer State Persistence (localStorage)
+**Status:** ✅ Implemented in localStorage
+
+**Current Behavior:**
+- Timer state persists to localStorage on every change
+- On reload, computes elapsed time using `Date.now()` diff
+- Handles phase transitions if timer finished while app was closed
+- Works in both Guest and Auth modes
+
+**If Cross-Device Sync Needed:**
+- Store timer state in Supabase `reminder_timer_state` table
+- Sync on app open/close
+- Handle conflicts if timer running on multiple devices
+- Fields: `current_phase`, `remaining_seconds`, `last_tick_timestamp`, `is_running`, `preset_id`
+
+### Exercise Recommendations
+**Status:** UI placeholder exists, backend TODO
+
+**Current Behavior:**
+- Calm suggestion card appears after REST completion
+- "Ver ejercicios" button disabled with TODO comment
+- User can dismiss with "Tal vez después"
+
+**If Needed:**
+- Backend API or content database for exercise suggestions
+- Exercise library with metadata (duration, difficulty, body parts)
+- Recommendation algorithm (user history, time of day, etc.)
+- Integration with Exercises page/module
 
 ## Migration Notes
 

@@ -7,14 +7,28 @@
  * - No distinction between WORK and REST phases
  * - SkipForward button had unclear purpose
  * - No notifications when work timer completed
+ * - Timer reset on page reload
+ * - Incorrect REST phase messaging
+ * - Preset range labels didn't match timer behavior
  * 
  * Current Implementation:
  * - Timer has two phases: WORK (countdown to break) and REST (break duration)
- * - Presets define both work and rest durations
+ * - Presets define both work and rest durations with explicit defaults:
+ *   - Ligero: 60 min work / 10 min rest (range: 45-60 min)
+ *   - Standard: 45 min work / 5 min rest (range: 35-45 min)
+ *   - Enfoque: 90 min work / 10 min rest (range: 60-90 min)
+ * - Timer persists to localStorage and continues accurately after page reload
  * - When WORK completes, automatically switches to REST phase
- * - When REST completes, switches back to WORK and logs a break
+ * - When REST completes, switches back to WORK and logs a break (counts as habit for streak)
  * - SkipForward button skips to next phase
  * - Notifications fire when WORK phase completes
+ * - Exercise recommendation placeholder shown after REST completion
+ * 
+ * Timer Persistence Model:
+ * - Stores: phase, remainingSeconds, lastTickTimestamp, isRunning, presetId
+ * - On reload: Computes elapsed time using Date.now() diff
+ * - If WORK finished while closed, transitions to REST immediately
+ * - Uses localStorage key: "calmo_reminder_timer_state"
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -31,12 +45,23 @@ import {
   Check,
   Loader2,
   Coffee,
-  Briefcase
+  Briefcase,
+  Sparkles
 } from "lucide-react";
 import { useReminderSettings } from "@/hooks/useReminderSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useBreakLogs } from "@/hooks/useBreakLogs";
+
+const TIMER_STORAGE_KEY = "calmo_reminder_timer_state";
+
+interface TimerState {
+  phase: TimerPhase;
+  remainingSeconds: number;
+  lastTickTimestamp: number;
+  isRunning: boolean;
+  presetId: "light" | "standard" | "focus";
+}
 
 type TimerPhase = "work" | "rest";
 
@@ -49,9 +74,20 @@ interface PresetConfig {
   restMinutes: number; // Rest duration in minutes
 }
 
+/**
+ * Preset configurations
+ * 
+ * Note: The "interval" field represents the recommended WORK duration range for the preset.
+ * The timer uses a fixed default WORK duration within that range:
+ * - Ligero: Default 60 min (range: 45-60 min)
+ * - Standard: Default 45 min (range: 35-45 min) 
+ * - Enfoque: Default 90 min (range: 60-90 min)
+ * 
+ * REST durations are fixed per preset (5 or 10 minutes).
+ */
 const presets: PresetConfig[] = [
   { id: "light", name: "Ligero", interval: "45-60 min", description: "Para días intensos", workMinutes: 60, restMinutes: 10 },
-  { id: "standard", name: "Estándar", interval: "30-45 min", description: "Recomendado", workMinutes: 45, restMinutes: 5 },
+  { id: "standard", name: "Estándar", interval: "35-45 min", description: "Recomendado", workMinutes: 45, restMinutes: 5 },
   { id: "focus", name: "Enfoque", interval: "60-90 min", description: "Trabajo profundo", workMinutes: 90, restMinutes: 10 },
 ];
 
@@ -72,11 +108,58 @@ const Reminders = () => {
   );
   const [soundEnabled, setSoundEnabled] = useState(settings?.sound_enabled ?? true);
   
-  // Timer state
-  const [currentPhase, setCurrentPhase] = useState<TimerPhase>("work");
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  // Timer state - initialize from localStorage if available
+  const loadTimerState = (): { phase: TimerPhase; remaining: number; running: boolean } | null => {
+    try {
+      const stored = localStorage.getItem(TIMER_STORAGE_KEY);
+      if (!stored) return null;
+      
+      const state: TimerState = JSON.parse(stored);
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - state.lastTickTimestamp) / 1000);
+      
+      // If timer was running, compute remaining time
+      let remaining = state.remainingSeconds;
+      if (state.isRunning && elapsedSeconds > 0) {
+        remaining = Math.max(0, state.remainingSeconds - elapsedSeconds);
+      }
+      
+      // If WORK phase finished while app was closed, transition to REST
+      if (state.phase === "work" && remaining === 0 && state.isRunning) {
+        const config = getPresetConfig(state.presetId);
+        return { phase: "rest", remaining: config.restMinutes * 60, running: false };
+      }
+      
+      // If REST phase finished while app was closed, transition to WORK
+      if (state.phase === "rest" && remaining === 0 && state.isRunning) {
+        const config = getPresetConfig(state.presetId);
+        return { phase: "work", remaining: config.workMinutes * 60, running: false };
+      }
+      
+      return { phase: state.phase, remaining, running: state.isRunning && remaining > 0 };
+    } catch (e) {
+      if (import.meta.env.DEV) {
+        console.debug("Failed to load timer state:", e);
+      }
+      return null;
+    }
+  };
+  
+  const savedState = loadTimerState();
   const presetConfig = getPresetConfig(selectedPreset);
-  const [timeRemaining, setTimeRemaining] = useState(presetConfig.workMinutes * 60); // Start with work time
+  
+  const [currentPhase, setCurrentPhase] = useState<TimerPhase>(
+    savedState?.phase || "work"
+  );
+  const [isTimerRunning, setIsTimerRunning] = useState(
+    savedState?.running || false
+  );
+  const [timeRemaining, setTimeRemaining] = useState(
+    savedState?.remaining ?? presetConfig.workMinutes * 60
+  );
+  
+  // Track if we've shown exercise recommendation after REST
+  const [showExerciseRecommendation, setShowExerciseRecommendation] = useState(false);
 
   // Sync local state with database settings when they load
   useEffect(() => {
@@ -86,15 +169,25 @@ const Reminders = () => {
     }
   }, [settings, isGuest]);
 
-  // Update timer duration when preset changes
+  // Save timer state to localStorage whenever it changes
+  useEffect(() => {
+    const state: TimerState = {
+      phase: currentPhase,
+      remainingSeconds: timeRemaining,
+      lastTickTimestamp: Date.now(),
+      isRunning: isTimerRunning,
+      presetId: selectedPreset,
+    };
+    localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
+  }, [currentPhase, timeRemaining, isTimerRunning, selectedPreset]);
+
+  // Update timer duration when preset changes (reset to work phase)
   useEffect(() => {
     const config = getPresetConfig(selectedPreset);
-    if (currentPhase === "work") {
-      setTimeRemaining(config.workMinutes * 60);
-    } else {
-      setTimeRemaining(config.restMinutes * 60);
-    }
-    setIsTimerRunning(false); // Reset timer when preset changes
+    setCurrentPhase("work");
+    setTimeRemaining(config.workMinutes * 60);
+    setIsTimerRunning(false);
+    setShowExerciseRecommendation(false);
   }, [selectedPreset]);
 
   const formatTime = (seconds: number) => {
@@ -106,17 +199,22 @@ const Reminders = () => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Timer countdown logic
+  // Uses Date.now() diff for accuracy, not just interval ticks
   useEffect(() => {
     if (isTimerRunning && timeRemaining > 0) {
+      const startTime = Date.now();
+      const startRemaining = timeRemaining;
+      
       intervalRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            setIsTimerRunning(false); // Stop timer when it reaches 0
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const newRemaining = Math.max(0, startRemaining - elapsed);
+        
+        setTimeRemaining(newRemaining);
+        
+        if (newRemaining === 0) {
+          setIsTimerRunning(false);
+        }
+      }, 100); // Check every 100ms for smoother updates
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -133,9 +231,10 @@ const Reminders = () => {
 
   // Handle timer completion and phase transitions
   const phaseTransitionRef = useRef(false);
+  const hasTriggeredTransitionRef = useRef(false);
   
   useEffect(() => {
-    // Only trigger when timer reaches 0, timer was running, and we haven't already transitioned
+    // Only trigger when timer reaches 0, timer is not running, and we haven't already transitioned
     if (timeRemaining === 0 && !isTimerRunning && !phaseTransitionRef.current) {
       phaseTransitionRef.current = true; // Prevent multiple triggers
       const config = getPresetConfig(selectedPreset);
@@ -145,64 +244,80 @@ const Reminders = () => {
         setCurrentPhase("rest");
         setTimeRemaining(config.restMinutes * 60);
         
-        // Trigger notification
-        if (Notification.permission === "granted") {
-          new Notification("Momento de pausar", {
-            body: "Levántate y muévete. Tómate un descanso.",
-            icon: "/calm-desk-companion/icon-192.png",
-          });
-        }
-        
-        // Play sound if enabled
-        if (soundEnabled) {
-          try {
-            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = 800;
-            oscillator.type = "sine";
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.5);
-          } catch (e) {
-            if (import.meta.env.DEV) {
-              console.debug("Audio notification failed:", e);
+        // Only show notifications/sound if this transition just happened (not on initial load)
+        // Check if this is a fresh transition vs a reloaded state
+        if (!hasTriggeredTransitionRef.current) {
+          // Trigger notification
+          if (Notification.permission === "granted") {
+            new Notification("Momento de pausar", {
+              body: "Levántate y muévete. Tómate un descanso.",
+              icon: "/calm-desk-companion/icon-192.png",
+            });
+          }
+          
+          // Play sound if enabled
+          if (soundEnabled) {
+            try {
+              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const oscillator = audioContext.createOscillator();
+              const gainNode = audioContext.createGain();
+              
+              oscillator.connect(gainNode);
+              gainNode.connect(audioContext.destination);
+              
+              oscillator.frequency.value = 800;
+              oscillator.type = "sine";
+              
+              gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+              gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+              
+              oscillator.start(audioContext.currentTime);
+              oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (e) {
+              if (import.meta.env.DEV) {
+                console.debug("Audio notification failed:", e);
+              }
             }
           }
-        }
 
-        toast({
-          title: "¡Hora de descansar!",
-          description: `Tómate ${config.restMinutes} minutos de pausa.`,
-        });
+          toast({
+            title: "¡Hora de descansar!",
+            description: `Tómate ${config.restMinutes} minutos de pausa.`,
+          });
+        }
+        hasTriggeredTransitionRef.current = true;
       } else {
         // REST phase completed - switch back to WORK and log break
+        // NOTE: A completed REST counts as a habit for streak calculation
+        // This is logged to break_logs and contributes to daily activity streak
         setCurrentPhase("work");
         setTimeRemaining(config.workMinutes * 60);
         
-        // Log the completed break
-        logBreak("reminder");
-        
-        toast({
-          title: "Pausa completada",
-          description: "¡Bien hecho! Vuelve al trabajo.",
-        });
+        // Only log break and show UI if this is a fresh transition
+        if (!hasTriggeredTransitionRef.current) {
+          // Log the completed break (counts as habit)
+          logBreak("reminder");
+          
+          // Show exercise recommendation placeholder
+          setShowExerciseRecommendation(true);
+          
+          toast({
+            title: "Pausa completada",
+            description: "¡Bien hecho! Vuelve al trabajo.",
+          });
+        }
+        hasTriggeredTransitionRef.current = true;
       }
 
       // Reset transition flag after a short delay
       setTimeout(() => {
         phaseTransitionRef.current = false;
+        hasTriggeredTransitionRef.current = false;
       }, 1000);
     } else if (timeRemaining > 0) {
-      // Reset flag when timer is no longer at 0
+      // Reset flags when timer is no longer at 0
       phaseTransitionRef.current = false;
+      hasTriggeredTransitionRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRemaining, isTimerRunning]);
@@ -349,7 +464,7 @@ const Reminders = () => {
           <p className="text-sm text-muted-foreground">
             {currentPhase === "work" 
               ? `Descanso de ${presetConfig.restMinutes} min después`
-              : `Vuelve al trabajo en ${presetConfig.workMinutes} min`}
+              : `Descanso activo · vuelves al trabajo en ${presetConfig.restMinutes} min`}
           </p>
         </div>
         
@@ -420,6 +535,9 @@ const Reminders = () => {
                 <p className="text-sm text-muted-foreground">
                   {preset.interval} • {preset.description}
                 </p>
+                <p className="text-xs text-muted-foreground/70 mt-0.5">
+                  Duración: {preset.workMinutes} min trabajo / {preset.restMinutes} min descanso
+                </p>
               </div>
               {selectedPreset === preset.id && (
                 isUpdating ? (
@@ -432,6 +550,54 @@ const Reminders = () => {
           ))}
         </div>
       </motion.div>
+
+      {/* Exercise Recommendation (shown after REST completion) */}
+      {showExerciseRecommendation && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="mb-8"
+        >
+          <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl p-6 border border-primary/20">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium text-foreground mb-1">
+                  ¿Te gustaría hacer un ejercicio rápido?
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Unos minutos de movimiento pueden ayudarte a mantenerte activo.
+                </p>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowExerciseRecommendation(false)}
+                  >
+                    Tal vez después
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-primary"
+                    disabled
+                    title="Próximamente: Integración con ejercicios"
+                  >
+                    Ver ejercicios
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground/70 mt-2">
+                  TODO: Conectar con módulo de ejercicios cuando esté disponible
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Notification Permission */}
       <motion.div

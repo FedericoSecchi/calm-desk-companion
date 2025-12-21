@@ -9,8 +9,17 @@ export interface ActivityLog {
 
 /**
  * Calculate streak days from activity logs
- * Streak rule: A day counts if user has at least 1 activity (break, water, or pain)
- * Streak is consecutive days from today backwards
+ * 
+ * Streak Rule:
+ * - A day counts toward the streak if the user has at least 1 activity:
+ *   - Completed break (from break_logs, including reminder-triggered breaks)
+ *   - Logged water glass (from water_logs)
+ *   - Logged pain record (from pain_records)
+ * 
+ * Important: A completed REST phase from the Reminders timer logs a break to break_logs
+ * with type="reminder", which counts as a valid habit for streak calculation.
+ * 
+ * Streak is consecutive days from today backwards (inclusive if today has activity).
  */
 export function calculateStreak(
   breakLogs: ActivityLog[],
