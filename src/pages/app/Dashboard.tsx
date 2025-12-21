@@ -7,18 +7,36 @@ import {
   Play, 
   AlertTriangle,
   ChevronRight,
-  Target
+  Target,
+  Plus,
+  Loader2
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { useWaterLogs } from "@/hooks/useWaterLogs";
+import { useBreakLogs } from "@/hooks/useBreakLogs";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
-  // Mock data - replace with actual data from state/database
-  const todayStats = {
-    remindersCompleted: 4,
-    remindersTotal: 8,
-    streak: 7,
-    lastPainLevel: 3,
-    hydrationCount: 5,
+  const { toast } = useToast();
+  const stats = useDashboardStats();
+  const { addWaterGlass, isAdding: isAddingWater } = useWaterLogs();
+  const { logBreak, isLogging: isLoggingBreak } = useBreakLogs();
+
+  const handleAddWater = () => {
+    addWaterGlass();
+    toast({
+      title: "Vaso de agua agregado",
+      description: "¡Bien hecho! Mantente hidratado.",
+    });
+  };
+
+  const handleLogBreak = () => {
+    logBreak("reminder");
+    toast({
+      title: "Pausa registrada",
+      description: "¡Bien hecho! Sigue cuidándote.",
+    });
   };
 
   return (
@@ -44,15 +62,29 @@ const Dashboard = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-card rounded-2xl p-4 border border-border/50"
+          className="bg-card rounded-2xl p-4 border border-border/50 relative group"
         >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Target className="h-4 w-4 text-primary" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Target className="h-4 w-4 text-primary" />
+              </div>
             </div>
+            <button
+              onClick={handleLogBreak}
+              disabled={isLoggingBreak}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-muted"
+              title="Registrar pausa"
+            >
+              {isLoggingBreak ? (
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 text-primary" />
+              )}
+            </button>
           </div>
           <p className="text-2xl font-heading text-foreground">
-            {todayStats.remindersCompleted}/{todayStats.remindersTotal}
+            {stats.breaksToday}
           </p>
           <p className="text-xs text-muted-foreground">Pausas hoy</p>
         </motion.div>
@@ -69,7 +101,7 @@ const Dashboard = () => {
             </div>
           </div>
           <p className="text-2xl font-heading text-foreground">
-            {todayStats.streak}
+            {stats.streak}
           </p>
           <p className="text-xs text-muted-foreground">Días de racha</p>
         </motion.div>
@@ -86,24 +118,40 @@ const Dashboard = () => {
             </div>
           </div>
           <p className="text-2xl font-heading text-foreground">
-            {todayStats.lastPainLevel}/10
+            {stats.lastPain ? `${stats.lastPain.intensity}/10` : "—"}
           </p>
-          <p className="text-xs text-muted-foreground">Último dolor</p>
+          <p className="text-xs text-muted-foreground">
+            {stats.lastPain ? `Último dolor (${stats.lastPain.area})` : "Sin registros"}
+          </p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.25 }}
-          className="bg-card rounded-2xl p-4 border border-border/50"
+          className="bg-card rounded-2xl p-4 border border-border/50 relative group"
         >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-              <Droplets className="h-4 w-4 text-success" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                <Droplets className="h-4 w-4 text-success" />
+              </div>
             </div>
+            <button
+              onClick={handleAddWater}
+              disabled={isAddingWater}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-muted"
+              title="Agregar vaso de agua"
+            >
+              {isAddingWater ? (
+                <Loader2 className="h-4 w-4 text-success animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 text-success" />
+              )}
+            </button>
           </div>
           <p className="text-2xl font-heading text-foreground">
-            {todayStats.hydrationCount}
+            {stats.waterToday}
           </p>
           <p className="text-xs text-muted-foreground">Vasos de agua</p>
         </motion.div>
