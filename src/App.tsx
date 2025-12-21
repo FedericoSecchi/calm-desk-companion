@@ -37,7 +37,7 @@ const RedirectHandler = () => {
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isGuest } = useAuth();
 
   if (loading) {
     return (
@@ -47,7 +47,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     );
   }
 
-  if (!user) {
+  // Allow access if user is authenticated OR is a guest
+  if (!user && !isGuest) {
     return <Navigate to="/auth" replace />;
   }
 

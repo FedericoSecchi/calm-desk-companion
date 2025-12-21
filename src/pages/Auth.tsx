@@ -17,7 +17,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, signIn, signUp, signInWithGoogle } = useAuth();
+  const { user, signIn, signUp, signInWithGoogle, signInAsGuest } = useAuth();
   const prefersReducedMotion = useReducedMotion();
   const initialMode = searchParams.get("mode") === "signup" ? "signup" : "login";
   
@@ -139,6 +139,15 @@ const Auth = () => {
       });
       setIsLoading(false);
     }
+  };
+
+  const handleGuestAuth = () => {
+    signInAsGuest();
+    toast({
+      title: "Modo invitado",
+      description: "Estás navegando en modo demo. Los datos no se guardarán.",
+    });
+    navigate("/app", { replace: true });
   };
 
   return (
@@ -279,6 +288,22 @@ const Auth = () => {
                 Enlace mágico (sin contraseña)
               </Button>
             )}
+            
+            <div className="my-6 flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">o</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="w-full"
+              onClick={handleGuestAuth}
+              disabled={isLoading}
+            >
+              Probar sin registrarse
+            </Button>
           </div>
           
           <div className="mt-6 text-center text-sm">

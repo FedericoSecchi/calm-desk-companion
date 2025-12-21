@@ -12,6 +12,7 @@ import { Logo } from "@/components/Logo";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { to: "/app", icon: LayoutDashboard, label: "Inicio", end: true },
@@ -24,6 +25,7 @@ const navItems = [
 const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { isGuest } = useAuth();
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -125,6 +127,13 @@ const AppLayout = () => {
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-0">
+        {isGuest && (
+          <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center">
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              🎭 Modo invitado - Los datos no se guardarán
+            </p>
+          </div>
+        )}
         <div className="pt-16 lg:pt-0 pb-20 lg:pb-0">
           <Outlet />
         </div>

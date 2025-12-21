@@ -6,10 +6,12 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isGuest: boolean;
   signIn: (email: string, password: string) => Promise<{ data: { user: User | null; session: Session | null } | null; error: AuthError | null }>;
   signUp: (email: string, password: string) => Promise<{ data: { user: User | null; session: Session | null } | null; error: AuthError | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
+  signInAsGuest: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +32,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
 
   // Define ensureProfile before useEffect to avoid reference issues
   // This function safely creates a profile row when a user signs in for the first time
@@ -98,6 +101,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
         setUser(session?.user ?? null);
+        setIsGuest(false); // Clear guest mode if real session exists
         setLoading(false);
       }).catch((error) => {
         // Only log errors in development
@@ -114,6 +118,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } = supabase.auth.onAuthStateChange(async (_event, session) => {
           setSession(session);
           setUser(session?.user ?? null);
+          setIsGuest(false); // Clear guest mode when real session is detected
           setLoading(false);
 
           // Sync profile on sign in
@@ -165,6 +170,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (data?.session && !error) {
       setSession(data.session);
       setUser(data.session.user);
+      setIsGuest(false); // Clear guest mode when real user signs in
       setLoading(false);
     }
     
@@ -187,6 +193,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (data?.session && !error) {
       setSession(data.session);
       setUser(data.session.user);
+      setIsGuest(false); // Clear guest mode when real user signs up
       setLoading(false);
       // Ensure profile exists for new user
       await ensureProfile(data.session.user.id);
@@ -199,6 +206,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signOut = async () => {
+    // If guest user, just clear context state without calling Supabase
+    if (isGuest) {
+      setUser(null);
+      setSession(null);
+      setIsGuest(false);
+      setLoading(false);
+      return;
+    }
+    
+    // For real users, sign out from Supabase
     if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
   };
@@ -216,14 +233,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return { error };
   };
 
+  const signInAsGuest = () => {
+    // Create a fake user object for guest mode
+    // This does NOT use Supabase - it's purely local state
+    const guestUser: User = {
+      id: "guest",
+      email: "guest@demo.local",
+      aud: "authenticated",
+      role: "authenticated",
+      created_at: new Date().toISOString(),
+      app_metadata: {},
+      user_metadata: {},
+    };
+
+    setUser(guestUser);
+    setSession(null); // No real session for guest
+    setIsGuest(true);
+    setLoading(false);
+  };
+
   const value = {
     user,
     session,
     loading,
+    isGuest,
     signIn,
     signUp,
     signOut,
     signInWithGoogle,
+    signInAsGuest,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
