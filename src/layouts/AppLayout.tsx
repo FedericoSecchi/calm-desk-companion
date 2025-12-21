@@ -14,7 +14,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { FloatingTimer } from "@/components/FloatingTimer";
-import { useFocusTimer } from "@/contexts/FocusTimerContext";
 
 const navItems = [
   { to: "/app", icon: LayoutDashboard, label: "Inicio", end: true },
@@ -28,12 +27,6 @@ const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { isGuest } = useAuth();
-  const { isRunning } = useFocusTimer();
-  
-  // Compute if FloatingTimer should be visible (for layout space reservation)
-  const pathname = location.pathname;
-  const isOnRemindersPage = pathname.endsWith("/reminders") || pathname.includes("/app/reminders");
-  const isFloatingTimerVisible = isRunning && !isOnRemindersPage;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -134,7 +127,7 @@ const AppLayout = () => {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-0">
+      <main className="flex-1 lg:ml-0 flex flex-col">
         {isGuest && (
           <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center">
             <p className="text-sm text-amber-700 dark:text-amber-400">
@@ -142,15 +135,11 @@ const AppLayout = () => {
             </p>
           </div>
         )}
-        <div 
-          className={cn(
-            "pt-16 lg:pt-0 pb-20 lg:pb-0",
-            // Reserve layout space for FloatingTimer when visible
-            // Desktop: reserve right space (timer width 260px + margin 24px = ~300px)
-            // Mobile: reserve bottom space (timer height ~140px + margin 24px = ~170px)
-            isFloatingTimerVisible && "lg:pr-[300px] pb-[170px] lg:pb-20"
-          )}
-        >
+        
+        {/* Top Timer Bar - integrated at top of content */}
+        <FloatingTimer />
+        
+        <div className="pt-16 lg:pt-0 pb-20 lg:pb-0 flex-1">
           <Outlet />
         </div>
       </main>
@@ -182,9 +171,6 @@ const AppLayout = () => {
           })}
         </ul>
       </nav>
-
-      {/* Floating Timer - visible across all /app routes when active */}
-      <FloatingTimer />
     </div>
   );
 };

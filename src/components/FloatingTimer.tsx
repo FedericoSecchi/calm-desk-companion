@@ -1,15 +1,10 @@
 /**
- * FloatingTimer Component
+ * TopTimerBar Component
  * 
- * Persistent floating timer UI that appears when timer is active.
- * Visible across /app routes (except /app/reminders) to maintain focus continuity.
+ * Minimal, transparent timer bar integrated at the top of app content.
+ * Visible when timer is running, hidden on /app/reminders.
  * 
- * Features:
- * - Fixed position per section (no drag)
- * - Shows current phase, remaining time, and icon
- * - Controls: pause/resume and skip phase
- * - Clicking navigates to /app/reminders for full controls
- * - Hidden on /app/reminders page (full timer UI is there)
+ * Design: Calm, minimal, integrated - feels like part of the header.
  */
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,8 +24,6 @@ export const FloatingTimer = () => {
     toggleTimer,
     skipToNextPhase,
     formatTime,
-    getPresetConfig,
-    selectedPreset,
   } = focusTimerContext;
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,35 +33,24 @@ export const FloatingTimer = () => {
   const isOnRemindersPage = pathname.endsWith("/reminders") || pathname.includes("/app/reminders");
   const shouldShow = isRunning && !isOnRemindersPage;
 
-  // Consistent positioning: layout space is reserved in AppLayout
-  // Desktop: bottom-right (content has padding-right reserved)
-  // Mobile: bottom-center (content has padding-bottom reserved)
-  const getPositionClasses = () => {
-    return "bottom-6 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-6"; // Mobile: center, Desktop: right
-  };
-
-  const presetConfig = getPresetConfig(selectedPreset);
   const isWork = currentPhase === "work";
-  const phaseLabel = isWork ? "Trabajo" : "Descanso";
 
-  // Component is always mounted - visibility controlled via AnimatePresence
+  // Minimal top bar - integrated into layout
   return (
     <AnimatePresence>
       {shouldShow && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.5 }}
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3 }}
           className={cn(
-            "fixed z-[2147483647]",
-            getPositionClasses(),
-            "bg-card rounded-2xl border border-border/50",
-            "p-4",
-            "shadow-soft",
-            "select-none",
-            "flex flex-col gap-2",
-            "w-[260px]"
+            "w-full",
+            "bg-card/20 backdrop-blur-sm",
+            "border-b border-border/30",
+            "px-4 py-2",
+            "flex items-center justify-between gap-3",
+            "text-sm"
           )}
           onClick={() => navigate("/app/reminders")}
           role="button"
@@ -78,40 +60,33 @@ export const FloatingTimer = () => {
               navigate("/app/reminders");
             }
           }}
-          aria-label={`Timer ${phaseLabel}: ${formatTime(timeRemaining)} restantes. Click para ver controles completos.`}
+          aria-label={`Timer: ${formatTime(timeRemaining)} restantes. Click para ver controles completos.`}
         >
-          {/* Top Row: Phase Icon + Label */}
+          {/* Left: Icon + Time */}
           <div className="flex items-center gap-2">
             <div
               className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
                 isWork ? "bg-primary/10" : "bg-secondary/10"
               )}
             >
               {isWork ? (
-                <Briefcase className="h-4 w-4 text-primary" />
+                <Briefcase className="h-3.5 w-3.5 text-primary" />
               ) : (
-                <Coffee className="h-4 w-4 text-secondary" />
+                <Coffee className="h-3.5 w-3.5 text-secondary" />
               )}
             </div>
-            <span className="text-xs text-muted-foreground">
-              {phaseLabel}
+            <span className="font-medium text-foreground">
+              {formatTime(timeRemaining)}
             </span>
           </div>
 
-          {/* Middle: Big Timer */}
-          <div>
-            <p className="text-2xl font-heading text-foreground">
-              {formatTime(timeRemaining)}
-            </p>
-          </div>
-
-          {/* Bottom Row: Controls */}
+          {/* Right: Controls */}
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7"
               onClick={(e) => {
                 e.stopPropagation();
                 toggleTimer();
@@ -119,24 +94,22 @@ export const FloatingTimer = () => {
               aria-label={isRunning ? "Pausar timer" : "Reanudar timer"}
             >
               {isRunning ? (
-                <Pause className="h-4 w-4" />
+                <Pause className="h-3.5 w-3.5" />
               ) : (
-                <Play className="h-4 w-4" />
+                <Play className="h-3.5 w-3.5" />
               )}
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7"
               onClick={(e) => {
                 e.stopPropagation();
                 skipToNextPhase();
               }}
-              aria-label={
-                isWork ? "Saltar al descanso" : "Finalizar descanso"
-              }
+              aria-label={isWork ? "Saltar al descanso" : "Finalizar descanso"}
             >
-              <SkipForward className="h-4 w-4" />
+              <SkipForward className="h-3.5 w-3.5" />
             </Button>
           </div>
         </motion.div>
