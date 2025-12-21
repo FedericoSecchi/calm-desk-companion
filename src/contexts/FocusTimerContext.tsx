@@ -53,6 +53,7 @@ interface FocusTimerContextType {
   isRunning: boolean;
   selectedPreset: PresetId;
   soundEnabled: boolean;
+  lastRestCompletion: number; // Timestamp of last REST completion (for exercise recommendation)
   
   // Actions
   startTimer: () => void;
@@ -147,6 +148,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
   const [timeRemaining, setTimeRemaining] = useState(
     savedState?.remaining ?? presetConfig.workMinutes * 60
   );
+  const [lastRestCompletion, setLastRestCompletion] = useState<number>(0);
 
   // Sync with database settings
   useEffect(() => {
@@ -167,14 +169,6 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     };
     localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
   }, [currentPhase, timeRemaining, isRunning, selectedPreset]);
-
-  // Update timer duration when preset changes (reset to work phase)
-  useEffect(() => {
-    const config = getPresetConfig(selectedPreset);
-    setCurrentPhase("work");
-    setTimeRemaining(config.workMinutes * 60);
-    setIsRunning(false);
-  }, [selectedPreset, getPresetConfig]);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const phaseTransitionRef = useRef(false);
@@ -339,6 +333,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
         // REST phase completed - automatically switch back to WORK and start timer
         setCurrentPhase("work");
         setTimeRemaining(config.workMinutes * 60);
+        setLastRestCompletion(now); // Record timestamp of REST completion
         
         if (isFreshTransition) {
           // Log the completed break (counts as habit)
@@ -392,7 +387,14 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
   }, []);
 
   const setPreset = useCallback(async (preset: PresetId) => {
+    const oldPreset = selectedPreset;
     setSelectedPreset(preset);
+    
+    // Reset timer to work phase with new preset duration
+    const config = getPresetConfig(preset);
+    setCurrentPhase("work");
+    setTimeRemaining(config.workMinutes * 60);
+    setIsRunning(false);
     
     if (!isGuest) {
       try {
@@ -401,9 +403,14 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
         if (import.meta.env.DEV) {
           console.error("Error updating reminder settings:", error);
         }
+        // Revert on error
+        setSelectedPreset(oldPreset);
+        const oldConfig = getPresetConfig(oldPreset);
+        setTimeRemaining(oldConfig.workMinutes * 60);
+        throw error; // Re-throw so caller can handle
       }
     }
-  }, [isGuest, updateSettings]);
+  }, [isGuest, updateSettings, selectedPreset, getPresetConfig]);
 
   const setSoundEnabled = useCallback(async (enabled: boolean) => {
     setSoundEnabledState(enabled);
@@ -431,6 +438,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     isRunning,
     selectedPreset,
     soundEnabled,
+    lastRestCompletion,
     startTimer,
     pauseTimer,
     toggleTimer,
