@@ -32,37 +32,53 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   // Define ensureProfile before useEffect to avoid reference issues
+  // This function safely creates a profile row when a user signs in for the first time
   const ensureProfile = async (userId: string) => {
     if (!isSupabaseConfigured) return;
     
     try {
       // Check if profile exists
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile, error: selectError } = await supabase
         .from("profiles")
         .select("id")
         .eq("id", userId)
         .single();
 
+      // If selectError is not a "not found" error, log it
+      if (selectError && selectError.code !== "PGRST116") {
+        // PGRST116 = no rows returned, which is expected if profile doesn't exist
+        if (import.meta.env.DEV) {
+          console.warn("Error checking profile:", selectError);
+        }
+      }
+
       // Create profile if it doesn't exist
       if (!existingProfile) {
-        const { error } = await supabase.from("profiles").insert({
+        const { error: insertError } = await supabase.from("profiles").insert({
           id: userId,
           // Add any default profile fields here if needed
         });
 
-        if (error && error.code !== "23505") {
-          // 23505 is unique violation, which is fine (race condition)
-          // Only log errors in development
-          if (import.meta.env.DEV) {
-            console.error("Error creating profile:", error);
+        if (insertError) {
+          // 23505 is unique violation (race condition - another request created it)
+          // This is fine and can be ignored
+          if (insertError.code !== "23505") {
+            // Other errors should be logged
+            if (import.meta.env.DEV) {
+              console.error("Error creating profile:", insertError);
+            }
+          } else if (import.meta.env.DEV) {
+            // Log race condition in dev for debugging
+            console.debug("Profile already exists (race condition)");
           }
+        } else if (import.meta.env.DEV) {
+          console.log("✓ Profile created successfully");
         }
       }
     } catch (error) {
-      // Profile might not exist yet, which is fine
-      // Only log errors in development
+      // Catch any unexpected errors
       if (import.meta.env.DEV) {
-        console.error("Error checking profile:", error);
+        console.error("Unexpected error in ensureProfile:", error);
       }
     }
   };

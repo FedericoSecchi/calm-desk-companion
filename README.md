@@ -58,27 +58,43 @@ Before using authentication, configure the following in your Supabase project:
 #### 2. Enable Google OAuth (Optional)
 - Go to **Authentication → Providers**
 - Enable **Google** provider
-- Add your Google OAuth credentials (Client ID and Client Secret)
-- Add redirect URL: `http://localhost:5173/auth/callback`
+- Click **Configure** and add:
+  - **Client ID** (from Google Cloud Console)
+  - **Client Secret** (from Google Cloud Console)
+- **Important:** The redirect URL in Google Cloud Console must match:
+  - For local dev: `http://localhost:5173/auth/callback`
+  - For production: `https://federicosecchi.github.io/calm-desk-companion/auth/callback`
 
-#### 3. Configure Redirect URLs
+#### 3. Configure Redirect URLs in Supabase
 - Go to **Authentication → URL Configuration**
-- Add to **Redirect URLs**:
-  - `http://localhost:5173/auth/callback` (for local development)
-  - `https://federicosecchi.github.io/calm-desk-companion/auth/callback` (for production)
+- Add to **Redirect URLs** (one per line):
+  ```
+  http://localhost:5173/auth/callback
+  https://federicosecchi.github.io/calm-desk-companion/auth/callback
+  ```
+- **Site URL** should be set to your production URL:
+  ```
+  https://federicosecchi.github.io/calm-desk-companion
+  ```
 
 #### 4. Set Up Profiles Table
-The app expects a `profiles` table with the following structure:
+The app expects a `profiles` table with the following structure. Run this SQL in your Supabase SQL Editor:
 
 ```sql
-CREATE TABLE profiles (
-  id UUID REFERENCES auth.users(id) PRIMARY KEY,
+-- Create profiles table
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
 -- Enable Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (for idempotency)
+DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 
 -- Policy: Users can read their own profile
 CREATE POLICY "Users can read own profile"
@@ -96,7 +112,11 @@ CREATE POLICY "Users can update own profile"
   USING (auth.uid() = id);
 ```
 
-The app will automatically create a profile row when a user signs up for the first time.
+**Important Notes:**
+- The `id` column references `auth.users(id)` - this is automatically set by Supabase
+- The app will automatically create a profile row when a user signs in for the first time
+- RLS policies ensure users can only access their own profile
+- The `ON DELETE CASCADE` ensures profiles are deleted when users are deleted
 
 ### Installation
 

@@ -56,21 +56,39 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
 
 // OAuth Callback Handler
 const AuthCallback = () => {
-  const { loading } = useAuth();
+  const { loading, user, session } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading) {
-      // Small delay to ensure session is set
-      setTimeout(() => {
-        navigate("/app", { replace: true });
-      }, 100);
+    // Wait for auth to finish loading
+    if (loading) return;
+
+    // If we have a user/session, redirect to app
+    if (user || session) {
+      navigate("/app", { replace: true });
+      return;
     }
-  }, [loading, navigate]);
+
+    // If no user after loading, there might be an error or the callback failed
+    // Wait a bit more for Supabase to process the callback, then redirect to auth
+    const timeout = setTimeout(() => {
+      if (!user && !session) {
+        // Redirect to auth page if callback didn't result in a session
+        navigate("/auth", { replace: true });
+      }
+    }, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [loading, user, session, navigate]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="text-muted-foreground">Completando inicio de sesión...</div>
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="text-center">
+        <div className="text-muted-foreground mb-2">Completando inicio de sesión...</div>
+        {loading && (
+          <div className="text-sm text-muted-foreground">Por favor espera...</div>
+        )}
+      </div>
     </div>
   );
 };
