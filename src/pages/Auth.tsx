@@ -73,13 +73,27 @@ const Auth = () => {
         error = result.error;
         
         if (!error) {
-          toast({
-            title: "Cuenta creada",
-            description: "Revisa tu correo para confirmar tu cuenta.",
-          });
-          // Don't navigate yet, wait for email confirmation
-          setIsLoading(false);
-          return;
+          // Check if we got a session immediately (email confirmation disabled)
+          if (result.data?.session) {
+            // Email confirmation is disabled - user is logged in immediately
+            toast({
+              title: "Cuenta creada",
+              description: "¡Bienvenido! Tu cuenta ha sido creada exitosamente.",
+            });
+            // Navigation will happen via useEffect when user state updates
+            // Profile will be created automatically by AuthContext
+            setIsLoading(false);
+            return;
+          } else {
+            // Email confirmation is required
+            toast({
+              title: "Cuenta creada",
+              description: "Revisa tu correo para confirmar tu cuenta.",
+            });
+            // Don't navigate yet, wait for email confirmation
+            setIsLoading(false);
+            return;
+          }
         }
       } else {
         const result = await signIn(email, password);

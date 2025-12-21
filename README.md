@@ -55,6 +55,13 @@ Before using authentication, configure the following in your Supabase project:
 - Ensure **Email** provider is enabled
 - Configure email templates if needed
 
+**For Local Development (Optional):**
+- To disable email confirmation for faster testing:
+  - Go to **Authentication → Settings**
+  - Under **Email Auth**, toggle **"Enable email confirmations"** to OFF
+  - This allows users to sign up and use the app immediately without email verification
+  - **Note:** Keep this enabled for production for security
+
 #### 2. Enable Google OAuth (Optional)
 - Go to **Authentication → Providers**
 - Enable **Google** provider

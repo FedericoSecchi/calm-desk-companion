@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string) => Promise<{ data: { user: User | null; session: Session | null } | null; error: AuthError | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
 }
@@ -166,11 +166,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!isSupabaseConfigured) {
       return { error: { message: "Supabase is not configured", name: "ConfigurationError" } as AuthError };
     }
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
-    return { error };
+    // Return both data and error so the caller can check if session was created immediately
+    // (happens when email confirmation is disabled)
+    return { data, error };
   };
 
   const signOut = async () => {
