@@ -30,6 +30,7 @@ interface SavedPosition {
 
 export const FloatingTimer = () => {
   // ALL HOOKS MUST BE CALLED FIRST - No early returns before hooks
+  const focusTimerContext = useFocusTimer();
   const {
     currentPhase,
     timeRemaining,
@@ -39,9 +40,16 @@ export const FloatingTimer = () => {
     formatTime,
     getPresetConfig,
     selectedPreset,
-  } = useFocusTimer();
+  } = focusTimerContext;
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // BRUTAL DEBUG: Log entire context object and identity
+  console.log("[FloatingTimer] CONTEXT OBJECT:", focusTimerContext);
+  console.log("[FloatingTimer] CONTEXT IDENTITY:", focusTimerContext === focusTimerContext ? "SAME" : "DIFFERENT");
+  console.log("[FloatingTimer] isRunning:", isRunning, typeof isRunning);
+  console.log("[FloatingTimer] timeRemaining:", timeRemaining);
+  console.log("[FloatingTimer] pathname:", location.pathname);
   
   // State hooks - must be called unconditionally
   const [isDragging, setIsDragging] = useState(false);
@@ -118,12 +126,35 @@ export const FloatingTimer = () => {
 
   // Component is ALWAYS mounted - visibility controlled via CSS only
   // Use ONLY opacity + pointer-events (NO display:none to avoid conflicts)
-  if (import.meta.env.DEV) {
-    console.debug("[FloatingTimer] Rendered", { shouldShowFloatingTimer });
-  }
+  console.log("[FloatingTimer] RENDERED - shouldShowFloatingTimer:", shouldShowFloatingTimer);
 
   return (
-    <motion.div
+    <>
+      {/* FORCED DEBUG BOX - ALWAYS VISIBLE TO PROVE RENDER */}
+      <div
+        style={{
+          position: "fixed",
+          top: 100,
+          left: 100,
+          zIndex: 99999,
+          background: "red",
+          color: "white",
+          padding: 20,
+          border: "5px solid yellow",
+          fontSize: "16px",
+          fontWeight: "bold",
+          minWidth: 300,
+        }}
+      >
+        <div>FLOATING TIMER FORCE RENDER</div>
+        <div>isRunning: {String(isRunning)}</div>
+        <div>timeRemaining: {timeRemaining}</div>
+        <div>pathname: {location.pathname}</div>
+        <div>shouldShow: {String(shouldShowFloatingTimer)}</div>
+        <div>Context ID: {String(focusTimerContext?.isRunning)}</div>
+      </div>
+      
+      <motion.div
       initial={false}
       animate={{ 
         opacity: shouldShowFloatingTimer ? 1 : 0,
@@ -262,6 +293,7 @@ export const FloatingTimer = () => {
           </div>
         </div>
       </motion.div>
+    </>
   );
 };
 

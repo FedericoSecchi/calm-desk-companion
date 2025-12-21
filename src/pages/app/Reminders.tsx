@@ -43,6 +43,7 @@ const Reminders = () => {
   const { settings, isLoading, updateSettings, isUpdating } = useReminderSettings();
   
   // Get timer state and controls from global context
+  const focusTimerContext = useFocusTimer();
   const {
     currentPhase,
     timeRemaining,
@@ -56,7 +57,14 @@ const Reminders = () => {
     formatTime,
     getPresetConfig,
     lastRestCompletion,
-  } = useFocusTimer();
+  } = focusTimerContext;
+  
+  // BRUTAL DEBUG: Log context in Reminders to compare with FloatingTimer
+  console.log("[Reminders] CONTEXT OBJECT:", focusTimerContext);
+  console.log("[Reminders] CONTEXT IDENTITY:", focusTimerContext === focusTimerContext ? "SAME" : "DIFFERENT");
+  console.log("[Reminders] isRunning:", isRunning, typeof isRunning);
+  console.log("[Reminders] timeRemaining:", timeRemaining);
+  console.log("[Reminders] When toggleTimer called, isRunning will change to:", !isRunning);
 
   const presetConfig = getPresetConfig(selectedPreset);
 
