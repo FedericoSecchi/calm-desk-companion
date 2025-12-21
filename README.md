@@ -17,6 +17,7 @@ This project is built with:
 - **shadcn/ui** - UI component library
 - **Tailwind CSS** - Styling
 - **Vite PWA Plugin** - Progressive Web App support
+- **Supabase** - Authentication and backend services
 
 ## 📦 Getting Started
 
@@ -24,6 +25,24 @@ This project is built with:
 
 - Node.js 20+ (recommended: use [nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
 - npm or bun
+- Supabase project (for authentication)
+
+### Environment Variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+You can find these values in your Supabase project settings:
+1. Go to [Supabase Dashboard](https://app.supabase.com)
+2. Select your project
+3. Go to Settings > API
+4. Copy the "Project URL" and "anon public" key
+
+**Important:** Never commit `.env.local` to version control. It's already in `.gitignore`.
 
 ### Installation
 
@@ -36,6 +55,9 @@ cd calm-desk-companion
 
 # Install dependencies
 npm install
+
+# Create .env.local file with your Supabase credentials
+# (See Environment Variables section above)
 
 # Start the development server
 npm run dev
