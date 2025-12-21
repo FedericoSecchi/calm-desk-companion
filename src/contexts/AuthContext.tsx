@@ -31,43 +31,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // If Supabase is not configured, skip auth initialization
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
-    }
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    }).catch((error) => {
-      // Only log errors in development
-      if (import.meta.env.DEV) {
-        console.error("Error getting session:", error);
-      }
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      // Sync profile on sign in
-      if (session?.user && _event === "SIGNED_IN") {
-        await ensureProfile(session.user.id);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
+  // Define ensureProfile before useEffect to avoid reference issues
   const ensureProfile = async (userId: string) => {
     if (!isSupabaseConfigured) return;
     
@@ -102,6 +66,74 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     }
   };
+
+  useEffect(() => {
+    // If Supabase is not configured, skip auth initialization completely
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
+    // Safely get initial session with error handling
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    try {
+      // Get initial session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }).catch((error) => {
+        // Only log errors in development
+        if (import.meta.env.DEV) {
+          console.error("Error getting session:", error);
+        }
+        setLoading(false);
+      });
+
+      // Listen for auth changes - wrap in try-catch in case it throws
+      try {
+        const {
+          data: { subscription: sub },
+        } = supabase.auth.onAuthStateChange(async (_event, session) => {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+
+          // Sync profile on sign in
+          if (session?.user && _event === "SIGNED_IN") {
+            await ensureProfile(session.user.id);
+          }
+        });
+        subscription = sub;
+      } catch (error) {
+        // If onAuthStateChange fails, just log and continue
+        if (import.meta.env.DEV) {
+          console.error("Error setting up auth state listener:", error);
+        }
+        setLoading(false);
+      }
+    } catch (error) {
+      // Catch any synchronous errors
+      if (import.meta.env.DEV) {
+        console.error("Error in auth initialization:", error);
+      }
+      setLoading(false);
+    }
+
+    return () => {
+      if (subscription) {
+        try {
+          subscription.unsubscribe();
+        } catch (error) {
+          // Ignore unsubscribe errors
+          if (import.meta.env.DEV) {
+            console.warn("Error unsubscribing from auth:", error);
+          }
+        }
+      }
+    };
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     if (!isSupabaseConfigured) {
