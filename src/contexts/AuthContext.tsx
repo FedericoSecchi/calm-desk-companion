@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session, AuthError } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 interface AuthContextType {
   user: User | null;
@@ -32,10 +32,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // If Supabase is not configured, skip auth initialization
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch((error) => {
+      console.error("Error getting session:", error);
       setLoading(false);
     });
 
@@ -57,6 +66,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const ensureProfile = async (userId: string) => {
+    if (!isSupabaseConfigured) return;
+    
     try {
       // Check if profile exists
       const { data: existingProfile } = await supabase
@@ -84,6 +95,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: { message: "Supabase is not configured", name: "ConfigurationError" } as AuthError };
+    }
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -92,6 +106,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signUp = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: { message: "Supabase is not configured", name: "ConfigurationError" } as AuthError };
+    }
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -100,10 +117,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signOut = async () => {
+    if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
   };
 
   const signInWithGoogle = async () => {
+    if (!isSupabaseConfigured) {
+      return { error: { message: "Supabase is not configured", name: "ConfigurationError" } as AuthError };
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
