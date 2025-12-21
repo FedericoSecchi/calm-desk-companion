@@ -13,6 +13,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { FloatingTimer } from "@/components/FloatingTimer";
 
 const navItems = [
   { to: "/app", icon: LayoutDashboard, label: "Inicio", end: true },
@@ -166,6 +167,9 @@ const AppLayout = () => {
           })}
         </ul>
       </nav>
+
+      {/* Floating Timer - visible across all /app routes when active */}
+      <FloatingTimer />
     </div>
   );
 };

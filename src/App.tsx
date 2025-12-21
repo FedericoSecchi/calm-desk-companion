@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useSearchParams, Navigate } 
 import { useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { FocusTimerProvider } from "./contexts/FocusTimerContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -112,7 +113,9 @@ const App = () => (
                 path="/app"
                 element={
                   <ProtectedRoute>
-                    <AppLayout />
+                    <FocusTimerProvider>
+                      <AppLayout />
+                    </FocusTimerProvider>
                   </ProtectedRoute>
                 }
               >
