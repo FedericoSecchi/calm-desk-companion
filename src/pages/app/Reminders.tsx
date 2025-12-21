@@ -105,13 +105,13 @@ const Reminders = () => {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Timer countdown logic with phase transitions
+  // Timer countdown logic
   useEffect(() => {
-    if (isTimerRunning) {
+    if (isTimerRunning && timeRemaining > 0) {
       intervalRef.current = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
-            // Timer completed - will be handled by effect below
+            setIsTimerRunning(false); // Stop timer when it reaches 0
             return 0;
           }
           return prev - 1;
@@ -129,7 +129,7 @@ const Reminders = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isTimerRunning]);
+  }, [isTimerRunning, timeRemaining]);
 
   // Handle timer completion and phase transitions
   const phaseTransitionRef = useRef(false);
