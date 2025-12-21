@@ -6,14 +6,18 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // Check if Supabase is configured at module load time
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
-// Temporary DEV-only log to verify environment variables are loaded
+// DEV-only log to verify environment variables are loaded
 if (import.meta.env.DEV) {
   if (isSupabaseConfigured) {
-    console.log("✓ Supabase environment variables loaded successfully");
+    console.log("✓ Supabase configured successfully");
+    console.log("  URL:", supabaseUrl?.substring(0, 30) + "...");
+    console.log("  Key:", supabaseAnonKey?.substring(0, 20) + "...");
   } else {
     console.warn(
-      "⚠ Missing Supabase environment variables. Authentication features will be disabled. " +
-      "Please update .env.local with your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY."
+      "⚠ Supabase not configured - Authentication features disabled"
+    );
+    console.info(
+      "  To enable: Update .env.local with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY"
     );
   }
 }

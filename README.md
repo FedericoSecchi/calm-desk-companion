@@ -36,13 +36,67 @@ VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-You can find these values in your Supabase project settings:
+**How to get these values:**
 1. Go to [Supabase Dashboard](https://app.supabase.com)
-2. Select your project
-3. Go to Settings > API
-4. Copy the "Project URL" and "anon public" key
+2. Select your project (or create a new one)
+3. Go to **Settings → API**
+4. Copy the following:
+   - **"Project URL"** → Use for `VITE_SUPABASE_URL`
+   - **"anon public" key** → Use for `VITE_SUPABASE_ANON_KEY`
 
 **Important:** Never commit `.env.local` to version control. It's already in `.gitignore`.
+
+### Supabase Dashboard Configuration
+
+Before using authentication, configure the following in your Supabase project:
+
+#### 1. Enable Email Authentication
+- Go to **Authentication → Providers**
+- Ensure **Email** provider is enabled
+- Configure email templates if needed
+
+#### 2. Enable Google OAuth (Optional)
+- Go to **Authentication → Providers**
+- Enable **Google** provider
+- Add your Google OAuth credentials (Client ID and Client Secret)
+- Add redirect URL: `http://localhost:5173/auth/callback`
+
+#### 3. Configure Redirect URLs
+- Go to **Authentication → URL Configuration**
+- Add to **Redirect URLs**:
+  - `http://localhost:5173/auth/callback` (for local development)
+  - `https://federicosecchi.github.io/calm-desk-companion/auth/callback` (for production)
+
+#### 4. Set Up Profiles Table
+The app expects a `profiles` table with the following structure:
+
+```sql
+CREATE TABLE profiles (
+  id UUID REFERENCES auth.users(id) PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Enable Row Level Security
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can read their own profile
+CREATE POLICY "Users can read own profile"
+  ON profiles FOR SELECT
+  USING (auth.uid() = id);
+
+-- Policy: Users can insert their own profile
+CREATE POLICY "Users can insert own profile"
+  ON profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
+-- Policy: Users can update their own profile
+CREATE POLICY "Users can update own profile"
+  ON profiles FOR UPDATE
+  USING (auth.uid() = id);
+```
+
+The app will automatically create a profile row when a user signs up for the first time.
 
 ### Installation
 
