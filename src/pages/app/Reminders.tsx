@@ -9,8 +9,12 @@ import {
   Volume2, 
   VolumeX,
   Clock,
-  Check
+  Check,
+  Loader2
 } from "lucide-react";
+import { useReminderSettings } from "@/hooks/useReminderSettings";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const presets = [
   { id: "light", name: "Ligero", interval: "45-60 min", description: "Para días intensos" },
@@ -19,10 +23,26 @@ const presets = [
 ];
 
 const Reminders = () => {
-  const [selectedPreset, setSelectedPreset] = useState("standard");
+  const { isGuest } = useAuth();
+  const { toast } = useToast();
+  const { settings, isLoading, updateSettings, isUpdating } = useReminderSettings();
+  
+  // Use settings from database if available, otherwise use local state
+  const [selectedPreset, setSelectedPreset] = useState<"light" | "standard" | "focus">(
+    settings?.preset || "standard"
+  );
+  const [soundEnabled, setSoundEnabled] = useState(settings?.sound_enabled ?? true);
+  
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(30 * 60); // 30 minutes in seconds
-  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // Sync local state with database settings when they load
+  useEffect(() => {
+    if (settings && !isGuest) {
+      setSelectedPreset(settings.preset);
+      setSoundEnabled(settings.sound_enabled);
+    }
+  }, [settings, isGuest]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -67,13 +87,76 @@ const Reminders = () => {
     setIsTimerRunning(false);
   };
 
+  const handlePresetChange = async (preset: "light" | "standard" | "focus") => {
+    setSelectedPreset(preset);
+    
+    if (!isGuest) {
+      try {
+        await updateSettings({ preset });
+        toast({
+          title: "Configuración guardada",
+          description: `Preset ${preset} actualizado`,
+        });
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error("Error updating reminder settings:", error);
+        }
+        toast({
+          title: "Error",
+          description: "No se pudo guardar la configuración",
+          variant: "destructive",
+        });
+        // Revert on error
+        setSelectedPreset(settings?.preset || "standard");
+      }
+    }
+  };
+
+  const handleSoundToggle = async () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    
+    if (!isGuest) {
+      try {
+        await updateSettings({ sound_enabled: newValue });
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error("Error updating sound setting:", error);
+        }
+        // Revert on error
+        setSoundEnabled(settings?.sound_enabled ?? true);
+      }
+    }
+  };
+
   const requestNotificationPermission = async () => {
     if ("Notification" in window && Notification.permission === "default") {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
-        // Notification permission granted
-        // Could show a success toast here
+        if (!isGuest) {
+          try {
+            await updateSettings({ notifications_enabled: true });
+            toast({
+              title: "Notificaciones activadas",
+              description: "Recibirás recordatorios aunque la app esté minimizada",
+            });
+          } catch (error) {
+            if (import.meta.env.DEV) {
+              console.error("Error updating notification setting:", error);
+            }
+          }
+        } else {
+          toast({
+            title: "Notificaciones activadas",
+            description: "En modo invitado, las notificaciones solo funcionan en esta sesión",
+          });
+        }
       }
+    } else if (Notification.permission === "granted") {
+      toast({
+        title: "Notificaciones ya activadas",
+        description: "Ya tienes permisos para recibir notificaciones",
+      });
     }
   };
 
@@ -115,8 +198,9 @@ const Reminders = () => {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSoundEnabled(!soundEnabled)}
+            onClick={handleSoundToggle}
             className="h-12 w-12 rounded-xl"
+            disabled={isUpdating}
           >
             {soundEnabled ? (
               <Volume2 className="h-5 w-5" />
@@ -163,12 +247,13 @@ const Reminders = () => {
           {presets.map((preset) => (
             <button
               key={preset.id}
-              onClick={() => setSelectedPreset(preset.id)}
+              onClick={() => handlePresetChange(preset.id as "light" | "standard" | "focus")}
+              disabled={isUpdating}
               className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
                 selectedPreset === preset.id
                   ? "border-primary bg-primary/5"
                   : "border-border bg-card hover:border-border/80"
-              }`}
+              } ${isUpdating ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <div className="text-left">
                 <p className="font-medium text-foreground">{preset.name}</p>
@@ -177,7 +262,11 @@ const Reminders = () => {
                 </p>
               </div>
               {selectedPreset === preset.id && (
-                <Check className="h-5 w-5 text-primary" />
+                isUpdating ? (
+                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                ) : (
+                  <Check className="h-5 w-5 text-primary" />
+                )
               )}
             </button>
           ))}
