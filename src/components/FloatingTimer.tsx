@@ -29,6 +29,7 @@ interface SavedPosition {
 }
 
 export const FloatingTimer = () => {
+  // ALL HOOKS MUST BE CALLED FIRST - No early returns before hooks
   const {
     currentPhase,
     timeRemaining,
@@ -41,27 +42,12 @@ export const FloatingTimer = () => {
   } = useFocusTimer();
   const navigate = useNavigate();
   const location = useLocation();
-  const presetConfig = getPresetConfig(selectedPreset);
-
-  // Visibility rules:
-  // 1. NOT visible on /app/reminders (full timer UI is there)
-  // 2. NOT visible when timer is not active (timeRemaining === 0 && !isRunning)
-  // 3. Visible on other /app routes when timer is active
-  const isOnRemindersPage = location.pathname === "/app/reminders" || location.pathname === "/calm-desk-companion/app/reminders";
-  const isTimerActive = timeRemaining > 0 || isRunning;
   
-  if (isOnRemindersPage || !isTimerActive) {
-    return null;
-  }
-
-  const isWork = currentPhase === "work";
-  const phaseLabel = isWork ? "Trabajo" : "Descanso";
-  
-  // Drag functionality with position persistence
+  // State hooks - must be called unconditionally
   const [isDragging, setIsDragging] = useState(false);
   const [hasCustomPosition, setHasCustomPosition] = useState(false);
   
-  // Load saved position
+  // Load saved position helper function
   const getSavedPosition = (): SavedPosition | null => {
     try {
       const saved = localStorage.getItem(POSITION_STORAGE_KEY);
@@ -81,14 +67,32 @@ export const FloatingTimer = () => {
   
   const savedPosition = getSavedPosition();
   
-  // Initialize motion values with saved position or 0
+  // Motion value hooks - must be called unconditionally
   const x = useMotionValue(savedPosition?.x || 0);
   const y = useMotionValue(savedPosition?.y || 0);
 
-  // Check if we have a saved position
+  // Effect hooks - must be called unconditionally
   useEffect(() => {
     setHasCustomPosition(savedPosition !== null);
   }, [savedPosition]);
+
+  // NOW we can compute derived values and handle visibility
+  const presetConfig = getPresetConfig(selectedPreset);
+  
+  // Visibility rules:
+  // 1. NOT visible on /app/reminders (full timer UI is there)
+  // 2. NOT visible when timer is not active (timeRemaining === 0 && !isRunning)
+  // 3. Visible on other /app routes when timer is active
+  const isOnRemindersPage = location.pathname === "/app/reminders" || location.pathname === "/calm-desk-companion/app/reminders";
+  const isTimerActive = timeRemaining > 0 || isRunning;
+  
+  // Conditional rendering AFTER all hooks
+  if (isOnRemindersPage || !isTimerActive) {
+    return null;
+  }
+
+  const isWork = currentPhase === "work";
+  const phaseLabel = isWork ? "Trabajo" : "Descanso";
 
   // Save position when dragging ends
   const handleDragEnd = (event: any, info: any) => {
