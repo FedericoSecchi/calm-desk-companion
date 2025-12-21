@@ -44,7 +44,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser(session?.user ?? null);
       setLoading(false);
     }).catch((error) => {
-      console.error("Error getting session:", error);
+      // Only log errors in development
+      if (import.meta.env.DEV) {
+        console.error("Error getting session:", error);
+      }
       setLoading(false);
     });
 
@@ -85,12 +88,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         if (error && error.code !== "23505") {
           // 23505 is unique violation, which is fine (race condition)
-          console.error("Error creating profile:", error);
+          // Only log errors in development
+          if (import.meta.env.DEV) {
+            console.error("Error creating profile:", error);
+          }
         }
       }
     } catch (error) {
       // Profile might not exist yet, which is fine
-      console.error("Error checking profile:", error);
+      // Only log errors in development
+      if (import.meta.env.DEV) {
+        console.error("Error checking profile:", error);
+      }
     }
   };
 

@@ -9,7 +9,7 @@ import { HeroBackground } from "@/components/HeroBackground";
 import { Mail, Lock, ArrowRight, Loader2, Chrome } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 type AuthMode = "login" | "signup" | "magic-link";
 
@@ -35,6 +35,17 @@ const Auth = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      toast({
+        title: "Configuración requerida",
+        description: "La autenticación no está configurada. Por favor, contacta al administrador.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
