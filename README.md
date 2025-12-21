@@ -1,73 +1,96 @@
-# Welcome to your Lovable project
+# Calmo - Desk Companion
 
-## Project info
+A Progressive Web App (PWA) for healthy habits while working at your computer. Take care of your posture and well-being while working, without pain.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Live Demo
 
-## How can I edit this code?
+The app is deployed on GitHub Pages: [View Live](https://federicosecchi.github.io/calm-desk-companion/)
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+## 🛠️ Technologies
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Vite** - Build tool and dev server
+- **React 18** - UI library
+- **TypeScript** - Type safety
+- **React Router** - Client-side routing
+- **shadcn/ui** - UI component library
+- **Tailwind CSS** - Styling
+- **Vite PWA Plugin** - Progressive Web App support
 
-## How can I deploy this project?
+## 📦 Getting Started
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Prerequisites
 
-## Can I connect a custom domain to my Lovable project?
+- Node.js 20+ (recommended: use [nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
+- npm or bun
 
-Yes, you can!
+### Installation
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```sh
+# Clone the repository
+git clone https://github.com/FedericoSecchi/calm-desk-companion.git
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+# Navigate to the project directory
+cd calm-desk-companion
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
+
+The app will be available at `http://localhost:8080`
+
+## 🏗️ Build
+
+```sh
+# Build for production
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+## 📱 PWA Features
+
+- **Installable** - Can be installed on desktop and mobile devices
+- **Offline Support** - Service worker caches assets for offline use
+- **App-like Experience** - Standalone display mode
+
+## 🚢 Deployment
+
+This project is automatically deployed to GitHub Pages via GitHub Actions when changes are pushed to the `main` branch.
+
+### Manual Deployment
+
+1. Build the project: `npm run build`
+2. The `dist` folder contains the production-ready files
+3. GitHub Actions will automatically deploy on push to `main`
+
+### GitHub Pages Setup
+
+1. Go to repository Settings > Pages
+2. Source should be set to "GitHub Actions"
+3. The workflow will automatically deploy on each push to `main`
+
+## 📝 Development
+
+### Project Structure
+
+```
+calm-desk-companion/
+├── public/          # Static assets
+├── src/
+│   ├── components/  # React components
+│   ├── pages/      # Page components
+│   ├── layouts/    # Layout components
+│   ├── hooks/      # Custom React hooks
+│   └── lib/        # Utilities
+└── dist/           # Build output (generated)
+```
+
+## 📄 License
+
+This project is private and proprietary.

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calmo - Hábitos saludables para trabajar</title>
+    <script>
+      // Single Page Apps for GitHub Pages
+      // Redirects to index.html and preserves the route for React Router
+      var path = window.location.pathname;
+      var base = '/calm-desk-companion';
+      var search = window.location.search;
+      var hash = window.location.hash;
+      
+      // Get the route after the base path
+      var route = path.replace(base, '') || '/';
+      
+      // Build the redirect URL
+      var redirectUrl = base + '/index.html';
+      
+      // If there's a route (not just base path), add it as a query parameter
+      // React Router will handle it via the basename
+      if (route !== '/') {
+        redirectUrl += '?redirect=' + encodeURIComponent(route);
+      }
+      
+      if (search) {
+        redirectUrl += (route === '/' ? '?' : '&') + search.slice(1);
+      }
+      
+      if (hash) {
+        redirectUrl += hash;
+      }
+      
+      // Use replace to avoid adding to history
+      window.location.replace(redirectUrl);
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>
