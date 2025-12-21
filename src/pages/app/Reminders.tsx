@@ -59,12 +59,11 @@ const Reminders = () => {
     lastRestCompletion,
   } = focusTimerContext;
   
-  // BRUTAL DEBUG: Log context in Reminders to compare with FloatingTimer
-  console.log("[Reminders] CONTEXT OBJECT:", focusTimerContext);
-  console.log("[Reminders] CONTEXT IDENTITY:", focusTimerContext === focusTimerContext ? "SAME" : "DIFFERENT");
-  console.log("[Reminders] isRunning:", isRunning, typeof isRunning);
-  console.log("[Reminders] timeRemaining:", timeRemaining);
-  console.log("[Reminders] When toggleTimer called, isRunning will change to:", !isRunning);
+  // DEV-only debug: Log provider ID to prove single context instance
+  if (import.meta.env.DEV) {
+    console.debug("[Reminders] Provider ID:", focusTimerContext.providerId);
+    console.debug("[Reminders] isRunning:", isRunning, "timeRemaining:", timeRemaining);
+  }
 
   const presetConfig = getPresetConfig(selectedPreset);
 

@@ -54,6 +54,7 @@ interface FocusTimerContextType {
   selectedPreset: PresetId;
   soundEnabled: boolean;
   lastRestCompletion: number; // Timestamp of last REST completion (for exercise recommendation)
+  providerId: string; // Unique ID to prove single provider instance
   
   // Actions
   startTimer: () => void;
@@ -87,6 +88,21 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
   const { toast } = useToast();
   const { settings, updateSettings } = useReminderSettings();
   const { logBreak } = useBreakLogs();
+  
+  // Create stable unique ID for this provider instance (proves single provider)
+  const getProviderId = () => {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return `provider-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  };
+  const providerIdRef = useRef<string>(getProviderId());
+  const providerId = providerIdRef.current;
+  
+  // Log provider ID in DEV mode
+  if (import.meta.env.DEV) {
+    console.debug("[FocusTimerProvider] Provider ID:", providerId);
+  }
   
   // Get preset config helper
   const getPresetConfig = useCallback((presetId: PresetId): PresetConfig => {
@@ -439,6 +455,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     selectedPreset,
     soundEnabled,
     lastRestCompletion,
+    providerId,
     startTimer,
     pauseTimer,
     toggleTimer,

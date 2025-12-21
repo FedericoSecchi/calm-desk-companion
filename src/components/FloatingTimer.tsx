@@ -44,12 +44,11 @@ export const FloatingTimer = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // BRUTAL DEBUG: Log entire context object and identity
-  console.log("[FloatingTimer] CONTEXT OBJECT:", focusTimerContext);
-  console.log("[FloatingTimer] CONTEXT IDENTITY:", focusTimerContext === focusTimerContext ? "SAME" : "DIFFERENT");
-  console.log("[FloatingTimer] isRunning:", isRunning, typeof isRunning);
-  console.log("[FloatingTimer] timeRemaining:", timeRemaining);
-  console.log("[FloatingTimer] pathname:", location.pathname);
+  // DEV-only debug: Log provider ID to prove single context instance
+  if (import.meta.env.DEV) {
+    console.debug("[FloatingTimer] Provider ID:", focusTimerContext.providerId);
+    console.debug("[FloatingTimer] isRunning:", isRunning, "timeRemaining:", timeRemaining);
+  }
   
   // State hooks - must be called unconditionally
   const [isDragging, setIsDragging] = useState(false);
@@ -87,19 +86,18 @@ export const FloatingTimer = () => {
   // NOW we can compute derived values and handle visibility
   const presetConfig = getPresetConfig(selectedPreset);
   
-  // SIMPLIFIED Visibility Logic:
+  // Visibility Logic:
   // Show FloatingTimer when: timer is running AND NOT on /app/reminders
-  // Simple rule: isRunning === true AND route !== reminders
+  // Route check: robust for GitHub Pages basename (endsWith or includes /reminders)
   const pathname = location.pathname;
-  const isOnRemindersPage = pathname.endsWith("/reminders") || pathname.endsWith("/app/reminders") || pathname.includes("/reminders");
+  const isOnRemindersPage = pathname.endsWith("/reminders") || pathname.includes("/app/reminders");
   const shouldShowFloatingTimer = isRunning && !isOnRemindersPage;
 
-  // Debug logs (DEV only)
+  // DEV-only debug logs
   if (import.meta.env.DEV) {
-    console.debug("[FloatingTimer] Visibility check:", {
+    console.debug("[FloatingTimer] Visibility:", {
       pathname,
       isRunning,
-      timeRemaining,
       isOnRemindersPage,
       shouldShowFloatingTimer,
     });
@@ -124,37 +122,10 @@ export const FloatingTimer = () => {
     localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(newPosition));
   };
 
-  // Component is ALWAYS mounted - visibility controlled via CSS only
-  // Use ONLY opacity + pointer-events (NO display:none to avoid conflicts)
-  console.log("[FloatingTimer] RENDERED - shouldShowFloatingTimer:", shouldShowFloatingTimer);
-
+  // Component is ALWAYS mounted - visibility controlled via opacity + pointer-events only
+  // NO display:none (can cause rendering issues)
   return (
-    <>
-      {/* FORCED DEBUG BOX - ALWAYS VISIBLE TO PROVE RENDER */}
-      <div
-        style={{
-          position: "fixed",
-          top: 100,
-          left: 100,
-          zIndex: 99999,
-          background: "red",
-          color: "white",
-          padding: 20,
-          border: "5px solid yellow",
-          fontSize: "16px",
-          fontWeight: "bold",
-          minWidth: 300,
-        }}
-      >
-        <div>FLOATING TIMER FORCE RENDER</div>
-        <div>isRunning: {String(isRunning)}</div>
-        <div>timeRemaining: {timeRemaining}</div>
-        <div>pathname: {location.pathname}</div>
-        <div>shouldShow: {String(shouldShowFloatingTimer)}</div>
-        <div>Context ID: {String(focusTimerContext?.isRunning)}</div>
-      </div>
-      
-      <motion.div
+    <motion.div
       initial={false}
       animate={{ 
         opacity: shouldShowFloatingTimer ? 1 : 0,
@@ -186,7 +157,6 @@ export const FloatingTimer = () => {
           bottom: "auto",
           top: "auto",
         } : {}),
-        // NO display:none - use only opacity for visibility
       }}
       className={cn(
         "fixed z-50",
@@ -293,7 +263,6 @@ export const FloatingTimer = () => {
           </div>
         </div>
       </motion.div>
-    </>
   );
 };
 
