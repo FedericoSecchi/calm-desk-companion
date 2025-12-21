@@ -13,16 +13,17 @@
  * 
  * Current Implementation:
  * - Timer has two phases: WORK (countdown to break) and REST (break duration)
- * - Presets define both work and rest durations with explicit defaults:
- *   - Ligero: 60 min work / 10 min rest (range: 45-60 min)
- *   - Standard: 45 min work / 5 min rest (range: 35-45 min)
- *   - Enfoque: 90 min work / 10 min rest (range: 60-90 min)
+ * - Presets define both work and rest durations:
+ *   - Ligero: 60 min work / 10 min rest
+ *   - Standard: 45 min work / 5 min rest
+ *   - Enfoque: 90 min work / 10 min rest
  * - Timer persists to localStorage and continues accurately after page reload
- * - When WORK completes, automatically switches to REST phase
- * - When REST completes, switches back to WORK and logs a break (counts as habit for streak)
+ * - Fully automatic cycle: WORK → REST → WORK continues indefinitely until paused
+ * - When WORK completes, automatically starts REST timer with notification + sound
+ * - When REST completes, automatically starts WORK timer with notification + sound
+ * - Both phase transitions trigger browser notifications and subtle sound
  * - SkipForward button skips to next phase
- * - Notifications fire when WORK phase completes
- * - Exercise recommendation placeholder shown after REST completion
+ * - Exercise recommendation CTA navigates to Exercises section
  * 
  * Timer Persistence Model:
  * - Stores: phase, remainingSeconds, lastTickTimestamp, isRunning, presetId
@@ -52,6 +53,7 @@ import { useReminderSettings } from "@/hooks/useReminderSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useBreakLogs } from "@/hooks/useBreakLogs";
+import { useNavigate } from "react-router-dom";
 
 const TIMER_STORAGE_KEY = "calmo_reminder_timer_state";
 
@@ -77,23 +79,22 @@ interface PresetConfig {
 /**
  * Preset configurations
  * 
- * Note: The "interval" field represents the recommended WORK duration range for the preset.
- * The timer uses a fixed default WORK duration within that range:
- * - Ligero: Default 60 min (range: 45-60 min)
- * - Standard: Default 45 min (range: 35-45 min) 
- * - Enfoque: Default 90 min (range: 60-90 min)
- * 
- * REST durations are fixed per preset (5 or 10 minutes).
+ * Note: The "interval" field now shows ONLY the actual WORK duration used by the timer.
+ * This simplifies the UI and removes confusion about ranges.
+ * - Ligero: 60 min work / 10 min rest
+ * - Standard: 45 min work / 5 min rest
+ * - Enfoque: 90 min work / 10 min rest
  */
 const presets: PresetConfig[] = [
-  { id: "light", name: "Ligero", interval: "45-60 min", description: "Para días intensos", workMinutes: 60, restMinutes: 10 },
-  { id: "standard", name: "Estándar", interval: "35-45 min", description: "Recomendado", workMinutes: 45, restMinutes: 5 },
-  { id: "focus", name: "Enfoque", interval: "60-90 min", description: "Trabajo profundo", workMinutes: 90, restMinutes: 10 },
+  { id: "light", name: "Ligero", interval: "60 min", description: "Para días intensos", workMinutes: 60, restMinutes: 10 },
+  { id: "standard", name: "Estándar", interval: "45 min", description: "Recomendado", workMinutes: 45, restMinutes: 5 },
+  { id: "focus", name: "Enfoque", interval: "90 min", description: "Trabajo profundo", workMinutes: 90, restMinutes: 10 },
 ];
 
 const Reminders = () => {
   const { isGuest } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { settings, isLoading, updateSettings, isUpdating } = useReminderSettings();
   const { logBreak } = useBreakLogs();
   
@@ -229,95 +230,123 @@ const Reminders = () => {
     };
   }, [isTimerRunning, timeRemaining]);
 
+  // Helper function to trigger notification and sound
+  const triggerNotificationAndSound = (title: string, body: string, isWorkToRest: boolean) => {
+    // Trigger notification
+    if (Notification.permission === "granted") {
+      new Notification(title, {
+        body,
+        icon: "/calm-desk-companion/icon-192.png",
+      });
+    }
+    
+    // Play sound if enabled
+    if (soundEnabled) {
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = isWorkToRest ? 800 : 600; // Slightly different tone for REST→WORK
+        oscillator.type = "sine";
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch (e) {
+        if (import.meta.env.DEV) {
+          console.debug("Audio notification failed:", e);
+        }
+      }
+    }
+  };
+
   // Handle timer completion and phase transitions
+  // Timer cycle is fully automatic: WORK → REST → WORK continues indefinitely
   const phaseTransitionRef = useRef(false);
-  const hasTriggeredTransitionRef = useRef(false);
+  const lastTransitionTimestampRef = useRef<number>(0);
   
   useEffect(() => {
     // Only trigger when timer reaches 0, timer is not running, and we haven't already transitioned
     if (timeRemaining === 0 && !isTimerRunning && !phaseTransitionRef.current) {
       phaseTransitionRef.current = true; // Prevent multiple triggers
       const config = getPresetConfig(selectedPreset);
+      const now = Date.now();
+      const timeSinceLastTransition = now - lastTransitionTimestampRef.current;
+
+      // Only trigger notifications/sound if this is a fresh transition (not a reloaded state)
+      // Check if transition happened recently (within last 2 seconds) to avoid duplicates on reload
+      const isFreshTransition = timeSinceLastTransition > 2000 || lastTransitionTimestampRef.current === 0;
 
       if (currentPhase === "work") {
-        // WORK phase completed - switch to REST
+        // WORK phase completed - automatically switch to REST and start timer
         setCurrentPhase("rest");
         setTimeRemaining(config.restMinutes * 60);
         
-        // Only show notifications/sound if this transition just happened (not on initial load)
-        // Check if this is a fresh transition vs a reloaded state
-        if (!hasTriggeredTransitionRef.current) {
-          // Trigger notification
-          if (Notification.permission === "granted") {
-            new Notification("Momento de pausar", {
-              body: "Levántate y muévete. Tómate un descanso.",
-              icon: "/calm-desk-companion/icon-192.png",
-            });
-          }
-          
-          // Play sound if enabled
-          if (soundEnabled) {
-            try {
-              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-              const oscillator = audioContext.createOscillator();
-              const gainNode = audioContext.createGain();
-              
-              oscillator.connect(gainNode);
-              gainNode.connect(audioContext.destination);
-              
-              oscillator.frequency.value = 800;
-              oscillator.type = "sine";
-              
-              gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-              gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-              
-              oscillator.start(audioContext.currentTime);
-              oscillator.stop(audioContext.currentTime + 0.5);
-            } catch (e) {
-              if (import.meta.env.DEV) {
-                console.debug("Audio notification failed:", e);
-              }
-            }
-          }
+        if (isFreshTransition) {
+          triggerNotificationAndSound(
+            "Momento de pausar",
+            "Levántate y muévete. Tómate un descanso.",
+            true
+          );
 
           toast({
             title: "¡Hora de descansar!",
             description: `Tómate ${config.restMinutes} minutos de pausa.`,
           });
         }
-        hasTriggeredTransitionRef.current = true;
+        
+        // Automatically start REST timer
+        setTimeout(() => {
+          setIsTimerRunning(true);
+        }, 500); // Small delay to ensure state updates complete
+        
+        lastTransitionTimestampRef.current = now;
       } else {
-        // REST phase completed - switch back to WORK and log break
+        // REST phase completed - automatically switch back to WORK and start timer
         // NOTE: A completed REST counts as a habit for streak calculation
-        // This is logged to break_logs and contributes to daily activity streak
         setCurrentPhase("work");
         setTimeRemaining(config.workMinutes * 60);
         
-        // Only log break and show UI if this is a fresh transition
-        if (!hasTriggeredTransitionRef.current) {
+        if (isFreshTransition) {
           // Log the completed break (counts as habit)
           logBreak("reminder");
           
           // Show exercise recommendation placeholder
           setShowExerciseRecommendation(true);
           
+          triggerNotificationAndSound(
+            "Pausa completada",
+            "¡Bien hecho! Vuelve al trabajo.",
+            false
+          );
+
           toast({
             title: "Pausa completada",
             description: "¡Bien hecho! Vuelve al trabajo.",
           });
         }
-        hasTriggeredTransitionRef.current = true;
+        
+        // Automatically start WORK timer
+        setTimeout(() => {
+          setIsTimerRunning(true);
+        }, 500); // Small delay to ensure state updates complete
+        
+        lastTransitionTimestampRef.current = now;
       }
 
       // Reset transition flag after a short delay
       setTimeout(() => {
         phaseTransitionRef.current = false;
-        hasTriggeredTransitionRef.current = false;
       }, 1000);
     } else if (timeRemaining > 0) {
-      // Reset flags when timer is no longer at 0
+      // Reset flag when timer is no longer at 0
       phaseTransitionRef.current = false;
-      hasTriggeredTransitionRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRemaining, isTimerRunning]);
@@ -535,9 +564,6 @@ const Reminders = () => {
                 <p className="text-sm text-muted-foreground">
                   {preset.interval} • {preset.description}
                 </p>
-                <p className="text-xs text-muted-foreground/70 mt-0.5">
-                  Duración: {preset.workMinutes} min trabajo / {preset.restMinutes} min descanso
-                </p>
               </div>
               {selectedPreset === preset.id && (
                 isUpdating ? (
@@ -581,18 +607,17 @@ const Reminders = () => {
                     Tal vez después
                   </Button>
                   <Button 
-                    variant="ghost" 
+                    variant="default" 
                     size="sm"
-                    className="text-primary"
-                    disabled
-                    title="Próximamente: Integración con ejercicios"
+                    className="text-primary-foreground"
+                    onClick={() => {
+                      setShowExerciseRecommendation(false);
+                      navigate("/app/exercises");
+                    }}
                   >
                     Ver ejercicios
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground/70 mt-2">
-                  TODO: Conectar con módulo de ejercicios cuando esté disponible
-                </p>
               </div>
             </div>
           </div>
