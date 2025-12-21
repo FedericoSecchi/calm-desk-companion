@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ data: { user: User | null; session: Session | null } | null; error: AuthError | null }>;
   signUp: (email: string, password: string) => Promise<{ data: { user: User | null; session: Session | null } | null; error: AuthError | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
@@ -155,11 +155,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!isSupabaseConfigured) {
       return { error: { message: "Supabase is not configured", name: "ConfigurationError" } as AuthError };
     }
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    return { error };
+    
+    // Immediately update context state if session was created
+    // This avoids race conditions with navigation
+    if (data?.session && !error) {
+      setSession(data.session);
+      setUser(data.session.user);
+      setLoading(false);
+    }
+    
+    // Return both data and error for consistency with signUp
+    // onAuthStateChange will also fire, but we've already updated state
+    return { data, error };
   };
 
   const signUp = async (email: string, password: string) => {
@@ -170,8 +181,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       email,
       password,
     });
+    
+    // Immediately update context state if session was created
+    // This avoids race conditions with navigation
+    if (data?.session && !error) {
+      setSession(data.session);
+      setUser(data.session.user);
+      setLoading(false);
+      // Ensure profile exists for new user
+      await ensureProfile(data.session.user.id);
+    }
+    
     // Return both data and error so the caller can check if session was created immediately
     // (happens when email confirmation is disabled)
+    // onAuthStateChange will also fire, but we've already updated state
     return { data, error };
   };
 

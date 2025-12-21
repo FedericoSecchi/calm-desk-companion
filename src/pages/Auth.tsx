@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
 import { HeroBackground } from "@/components/HeroBackground";
-import { Mail, Lock, ArrowRight, Loader2, Chrome } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, Chrome, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
@@ -25,6 +25,7 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -67,48 +68,51 @@ const Auth = () => {
         return;
       }
 
-      let error;
       if (mode === "signup") {
         const result = await signUp(email, password);
-        error = result.error;
         
-        if (!error) {
-          // Check if we got a session immediately (email confirmation disabled)
-          if (result.data?.session) {
-            // Email confirmation is disabled - user is logged in immediately
-            toast({
-              title: "Cuenta creada",
-              description: "¡Bienvenido! Tu cuenta ha sido creada exitosamente.",
-            });
-            // Navigation will happen via useEffect when user state updates
-            // Profile will be created automatically by AuthContext
-            setIsLoading(false);
-            return;
-          } else {
-            // Email confirmation is required
-            toast({
-              title: "Cuenta creada",
-              description: "Revisa tu correo para confirmar tu cuenta.",
-            });
-            // Don't navigate yet, wait for email confirmation
-            setIsLoading(false);
-            return;
-          }
+        if (result.error) {
+          throw result.error;
+        }
+        
+        // Check if we got a session immediately (email confirmation disabled)
+        if (result.data?.session) {
+          // Email confirmation is disabled - user is logged in immediately
+          toast({
+            title: "Cuenta creada",
+            description: "¡Bienvenido! Tu cuenta ha sido creada exitosamente.",
+          });
+          // Navigate immediately - don't wait for AuthContext to update
+          navigate("/app", { replace: true });
+          setIsLoading(false);
+          return;
+        } else {
+          // Email confirmation is required
+          toast({
+            title: "Cuenta creada",
+            description: "Revisa tu correo para confirmar tu cuenta.",
+          });
+          // Don't navigate yet, wait for email confirmation
+          setIsLoading(false);
+          return;
         }
       } else {
+        // Login flow
         const result = await signIn(email, password);
-        error = result.error;
-      }
-
-      if (error) {
-        throw error;
-      }
-
-      // Success - navigation will happen via useEffect when user state updates
-      if (mode === "signup") {
-        navigate("/onboarding");
-      } else {
-        navigate("/app");
+        
+        if (result.error) {
+          throw result.error;
+        }
+        
+        // signInWithPassword always returns a session on success
+        // Navigate immediately - don't wait for AuthContext to update
+        toast({
+          title: "Sesión iniciada",
+          description: "Bienvenido de vuelta.",
+        });
+        navigate("/app", { replace: true });
+        setIsLoading(false);
+        return;
       }
     } catch (error: any) {
       toast({
@@ -187,14 +191,26 @@ const Auth = () => {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     required
                     minLength={6}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
             )}
