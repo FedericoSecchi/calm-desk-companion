@@ -2,12 +2,15 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { LogOut, Globe, Volume2, Sparkles, MessageCircle, Music, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
-  const handleLogout = () => {
-    navigate("/");
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
   };
 
   return (

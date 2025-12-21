@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
@@ -30,6 +30,34 @@ const Reminders = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (isTimerRunning) {
+      intervalRef.current = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            setIsTimerRunning(false);
+            // Timer completed - could trigger notification here
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isTimerRunning]);
+
   const toggleTimer = () => {
     setIsTimerRunning(!isTimerRunning);
   };
@@ -37,6 +65,16 @@ const Reminders = () => {
   const skipTimer = () => {
     setTimeRemaining(30 * 60);
     setIsTimerRunning(false);
+  };
+
+  const requestNotificationPermission = async () => {
+    if ("Notification" in window && Notification.permission === "default") {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        // Notification permission granted
+        // Could show a success toast here
+      }
+    }
   };
 
   return (
@@ -165,7 +203,7 @@ const Reminders = () => {
                 Recibe recordatorios aunque la app esté minimizada. 
                 En iOS puede haber limitaciones.
               </p>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={requestNotificationPermission}>
                 Activar notificaciones
               </Button>
             </div>

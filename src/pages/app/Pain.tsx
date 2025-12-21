@@ -19,9 +19,20 @@ const Pain = () => {
   const [note, setNote] = useState("");
 
   const handleSubmit = () => {
+    if (!selectedArea) {
+      toast({
+        title: "Campo requerido",
+        description: "Por favor selecciona una zona afectada",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // TODO: Save to database when pain_records table is created
+    // For now, just show success toast
     toast({
       title: "Registro guardado",
-      description: `Dolor nivel ${painLevel} en ${selectedArea || "general"}`,
+      description: `Dolor nivel ${painLevel} en ${selectedArea}`,
     });
     setPainLevel(5);
     setSelectedArea("");
