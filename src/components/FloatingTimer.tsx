@@ -13,7 +13,7 @@
  * - Only visible when timer is active (has time remaining)
  */
 
-import { motion, AnimatePresence, useMotionValue } from "framer-motion";
+import { motion, useMotionValue } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, SkipForward, Briefcase, Coffee, GripVertical } from "lucide-react";
 import { useFocusTimer } from "@/contexts/FocusTimerContext";
@@ -83,13 +83,10 @@ export const FloatingTimer = () => {
   // 1. NOT visible on /app/reminders (full timer UI is there)
   // 2. NOT visible when timer is not active (timeRemaining === 0 && !isRunning)
   // 3. Visible on other /app routes when timer is active
+  // IMPORTANT: Component is ALWAYS mounted, visibility controlled via CSS only
   const isOnRemindersPage = location.pathname === "/app/reminders" || location.pathname === "/calm-desk-companion/app/reminders";
   const isTimerActive = timeRemaining > 0 || isRunning;
-  
-  // Conditional rendering AFTER all hooks
-  if (isOnRemindersPage || !isTimerActive) {
-    return null;
-  }
+  const isHidden = isOnRemindersPage || !isTimerActive;
 
   const isWork = currentPhase === "work";
   const phaseLabel = isWork ? "Trabajo" : "Descanso";
@@ -110,57 +107,58 @@ export const FloatingTimer = () => {
     localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(newPosition));
   };
 
+  // Component is ALWAYS mounted - visibility controlled via CSS only
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.9 }}
-        animate={{ 
-          opacity: 1, 
-          y: 0, 
-          scale: isDragging ? 1.05 : 1,
-        }}
-        exit={{ opacity: 0, y: 20, scale: 0.9 }}
-        transition={{ duration: 0.3 }}
-        drag
-        dragMomentum={false}
-        dragElastic={0}
-        dragConstraints={
-          typeof window !== "undefined"
-            ? {
-                left: -window.innerWidth + 400,
-                right: window.innerWidth - 400,
-                top: -window.innerHeight + 200,
-                bottom: window.innerHeight - 200,
-              }
-            : undefined
-        }
-        onDragStart={() => setIsDragging(true)}
-        onDragEnd={handleDragEnd}
-        style={{
-          ...(hasCustomPosition ? {
-            x,
-            y,
-            left: "auto",
-            right: "auto",
-            bottom: "auto",
-            top: "auto",
-          } : {}),
-        }}
-        className={cn(
-          "fixed z-50",
-          !hasCustomPosition && "bottom-4 right-4 lg:bottom-6 lg:right-6", // Default position
-          !hasCustomPosition && "mx-auto lg:mx-0", // Center on mobile if default
-          "w-[calc(100vw-2rem)] max-w-sm", // Mobile: full width with padding
-          "bg-card/95 backdrop-blur-sm",
-          "rounded-2xl border-2 shadow-lg",
-          "p-4",
-          "cursor-move",
-          "select-none", // Prevent text selection while dragging
-          isWork
-            ? "border-primary/30 bg-primary/5"
-            : "border-secondary/30 bg-secondary/5",
-          isDragging && "shadow-2xl"
-        )}
+    <motion.div
+      initial={false}
+      animate={{ 
+        opacity: isHidden ? 0 : 1,
+        scale: isDragging ? 1.05 : 1,
+        pointerEvents: isHidden ? "none" : "auto",
+      }}
+      transition={{ duration: 0.2 }}
+      drag={!isHidden} // Disable drag when hidden
+      dragMomentum={false}
+      dragElastic={0}
+      dragConstraints={
+        typeof window !== "undefined"
+          ? {
+              left: -window.innerWidth + 400,
+              right: window.innerWidth - 400,
+              top: -window.innerHeight + 200,
+              bottom: window.innerHeight - 200,
+            }
+          : undefined
+      }
+      onDragStart={() => setIsDragging(true)}
+      onDragEnd={handleDragEnd}
+      style={{
+        ...(hasCustomPosition ? {
+          x,
+          y,
+          left: "auto",
+          right: "auto",
+          bottom: "auto",
+          top: "auto",
+        } : {}),
+        // Hide via CSS when needed (component stays mounted)
+        display: isHidden ? "none" : "block",
+      }}
+      className={cn(
+        "fixed z-50",
+        !hasCustomPosition && "bottom-4 right-4 lg:bottom-6 lg:right-6", // Default position
+        !hasCustomPosition && "mx-auto lg:mx-0", // Center on mobile if default
+        "w-[calc(100vw-2rem)] max-w-sm", // Mobile: full width with padding
+        "bg-card/95 backdrop-blur-sm",
+        "rounded-2xl border-2 shadow-lg",
+        "p-4",
+        "cursor-move",
+        "select-none", // Prevent text selection while dragging
+        isWork
+          ? "border-primary/30 bg-primary/5"
+          : "border-secondary/30 bg-secondary/5",
+        isDragging && "shadow-2xl"
+      )}
         onClick={(e) => {
           // Only navigate if not dragging
           if (!isDragging) {
@@ -251,7 +249,6 @@ export const FloatingTimer = () => {
           </div>
         </div>
       </motion.div>
-    </AnimatePresence>
   );
 };
 
