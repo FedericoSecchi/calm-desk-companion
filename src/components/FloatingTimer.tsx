@@ -79,14 +79,23 @@ export const FloatingTimer = () => {
   // NOW we can compute derived values and handle visibility
   const presetConfig = getPresetConfig(selectedPreset);
   
-  // Visibility rules:
-  // 1. NOT visible on /app/reminders (full timer UI is there)
-  // 2. NOT visible when timer is not active (timeRemaining === 0 && !isRunning)
-  // 3. Visible on other /app routes when timer is active
-  // IMPORTANT: Component is ALWAYS mounted, visibility controlled via CSS only
-  const isOnRemindersPage = location.pathname === "/app/reminders" || location.pathname === "/calm-desk-companion/app/reminders";
-  const isTimerActive = timeRemaining > 0 || isRunning;
-  const isHidden = isOnRemindersPage || !isTimerActive;
+  // SIMPLIFIED Visibility Logic:
+  // Show FloatingTimer when: timer is running AND NOT on /app/reminders
+  // Simple rule: isRunning === true AND route !== reminders
+  const pathname = location.pathname;
+  const isOnRemindersPage = pathname.endsWith("/reminders") || pathname.endsWith("/app/reminders") || pathname.includes("/reminders");
+  const shouldShowFloatingTimer = isRunning && !isOnRemindersPage;
+
+  // Debug logs (DEV only)
+  if (import.meta.env.DEV) {
+    console.debug("[FloatingTimer] Visibility check:", {
+      pathname,
+      isRunning,
+      timeRemaining,
+      isOnRemindersPage,
+      shouldShowFloatingTimer,
+    });
+  }
 
   const isWork = currentPhase === "work";
   const phaseLabel = isWork ? "Trabajo" : "Descanso";
@@ -108,16 +117,21 @@ export const FloatingTimer = () => {
   };
 
   // Component is ALWAYS mounted - visibility controlled via CSS only
+  // Use ONLY opacity + pointer-events (NO display:none to avoid conflicts)
+  if (import.meta.env.DEV) {
+    console.debug("[FloatingTimer] Rendered", { shouldShowFloatingTimer });
+  }
+
   return (
     <motion.div
       initial={false}
       animate={{ 
-        opacity: isHidden ? 0 : 1,
+        opacity: shouldShowFloatingTimer ? 1 : 0,
         scale: isDragging ? 1.05 : 1,
-        pointerEvents: isHidden ? "none" : "auto",
+        pointerEvents: shouldShowFloatingTimer ? "auto" : "none",
       }}
       transition={{ duration: 0.2 }}
-      drag={!isHidden} // Disable drag when hidden
+      drag={shouldShowFloatingTimer} // Enable drag only when visible
       dragMomentum={false}
       dragElastic={0}
       dragConstraints={
@@ -141,8 +155,7 @@ export const FloatingTimer = () => {
           bottom: "auto",
           top: "auto",
         } : {}),
-        // Hide via CSS when needed (component stays mounted)
-        display: isHidden ? "none" : "block",
+        // NO display:none - use only opacity for visibility
       }}
       className={cn(
         "fixed z-50",
