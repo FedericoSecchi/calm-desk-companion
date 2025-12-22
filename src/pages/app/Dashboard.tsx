@@ -9,19 +9,22 @@ import {
   ChevronRight,
   Target,
   Plus,
+  Minus,
   Loader2
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useWaterLogs } from "@/hooks/useWaterLogs";
 import { useBreakLogs } from "@/hooks/useBreakLogs";
+import { useManualBreakAdjustments } from "@/hooks/useManualBreakAdjustments";
 import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const { toast } = useToast();
   const stats = useDashboardStats();
-  const { addWaterGlass, isAdding: isAddingWater } = useWaterLogs();
+  const { addWaterGlass, removeWaterGlass, isAdding: isAddingWater } = useWaterLogs();
   const { logBreak, isLogging: isLoggingBreak } = useBreakLogs();
+  const { adjustToday, resetToday } = useManualBreakAdjustments();
 
   const handleAddWater = () => {
     addWaterGlass();
@@ -31,11 +34,19 @@ const Dashboard = () => {
     });
   };
 
-  const handleLogBreak = () => {
-    logBreak("reminder");
+  const handleRemoveWater = () => {
+    removeWaterGlass();
     toast({
-      title: "Pausa registrada",
-      description: "¡Bien hecho! Sigue cuidándote.",
+      title: "Vaso de agua removido",
+      description: "Ajuste realizado.",
+    });
+  };
+
+  const handleAdjustBreak = (delta: number) => {
+    adjustToday(delta);
+    toast({
+      title: delta > 0 ? "Pausa agregada" : "Pausa removida",
+      description: "Ajuste manual realizado.",
     });
   };
 
@@ -70,23 +81,32 @@ const Dashboard = () => {
                 <Target className="h-4 w-4 text-primary" />
               </div>
             </div>
-            <button
-              onClick={handleLogBreak}
-              disabled={isLoggingBreak}
-              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-muted"
-              title="Registrar pausa"
-            >
-              {isLoggingBreak ? (
-                <Loader2 className="h-4 w-4 text-primary animate-spin" />
-              ) : (
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={() => handleAdjustBreak(-1)}
+                className="p-1.5 rounded-lg hover:bg-muted"
+                title="Quitar pausa"
+              >
+                <Minus className="h-4 w-4 text-primary" />
+              </button>
+              <button
+                onClick={() => handleAdjustBreak(1)}
+                className="p-1.5 rounded-lg hover:bg-muted"
+                title="Agregar pausa"
+              >
                 <Plus className="h-4 w-4 text-primary" />
-              )}
-            </button>
+              </button>
+            </div>
           </div>
           <p className="text-2xl font-heading text-foreground">
             {stats.breaksToday}
           </p>
           <p className="text-xs text-muted-foreground">Pausas hoy</p>
+          {stats.manualAdjustment !== 0 && (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {stats.timerBreaksToday} (timer) {stats.manualAdjustment > 0 ? "+" : ""}{stats.manualAdjustment} (ajuste)
+            </p>
+          )}
         </motion.div>
 
         <motion.div
@@ -137,18 +157,28 @@ const Dashboard = () => {
                 <Droplets className="h-4 w-4 text-success" />
               </div>
             </div>
-            <button
-              onClick={handleAddWater}
-              disabled={isAddingWater}
-              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-muted"
-              title="Agregar vaso de agua"
-            >
-              {isAddingWater ? (
-                <Loader2 className="h-4 w-4 text-success animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4 text-success" />
-              )}
-            </button>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={handleRemoveWater}
+                disabled={stats.waterToday === 0}
+                className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Quitar vaso de agua"
+              >
+                <Minus className="h-4 w-4 text-success" />
+              </button>
+              <button
+                onClick={handleAddWater}
+                disabled={isAddingWater}
+                className="p-1.5 rounded-lg hover:bg-muted"
+                title="Agregar vaso de agua"
+              >
+                {isAddingWater ? (
+                  <Loader2 className="h-4 w-4 text-success animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 text-success" />
+                )}
+              </button>
+            </div>
           </div>
           <p className="text-2xl font-heading text-foreground">
             {stats.waterToday}
@@ -169,11 +199,11 @@ const Dashboard = () => {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Button variant="warm" size="lg" className="justify-start h-auto py-4" asChild>
-            <Link to="/app/reminders">
+            <Link to="/app/reminders?from=dashboard">
               <Play className="h-5 w-5 mr-3" />
               <div className="text-left">
-                <p className="font-medium">Iniciar pausa</p>
-                <p className="text-xs opacity-80">Toma un descanso ahora</p>
+                <p className="font-medium">Iniciar foco</p>
+                <p className="text-xs opacity-80">Elige tu ritmo de trabajo</p>
               </div>
             </Link>
           </Button>

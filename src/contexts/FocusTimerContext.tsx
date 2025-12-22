@@ -33,9 +33,9 @@ export interface PresetConfig {
 }
 
 export const presets: PresetConfig[] = [
-  { id: "light", name: "Ligero", interval: "60 min", description: "Para días intensos", workMinutes: 60, restMinutes: 10 },
-  { id: "standard", name: "Estándar", interval: "45 min", description: "Recomendado", workMinutes: 45, restMinutes: 5 },
-  { id: "focus", name: "Enfoque", interval: "90 min", description: "Trabajo profundo", workMinutes: 90, restMinutes: 10 },
+  { id: "light", name: "Ritmo Suave", interval: "60 min", description: "60 min trabajo · 10 min descanso", workMinutes: 60, restMinutes: 10 },
+  { id: "standard", name: "Ritmo Balanceado", interval: "45 min", description: "45 min trabajo · 5 min descanso", workMinutes: 45, restMinutes: 5 },
+  { id: "focus", name: "Ritmo Profundo", interval: "90 min", description: "90 min trabajo · 10 min descanso", workMinutes: 90, restMinutes: 10 },
 ];
 
 interface TimerState {

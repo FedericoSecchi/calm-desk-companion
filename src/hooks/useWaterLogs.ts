@@ -115,6 +115,40 @@ export const useWaterLogs = () => {
     },
   });
 
+  // Delete a water log (for corrections)
+  const deleteWaterLog = async (logId: string): Promise<void> => {
+    if (!isSupabaseConfigured) {
+      throw new Error("Supabase is not configured");
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const { error } = await supabase
+      .from("water_logs")
+      .delete()
+      .eq("id", logId)
+      .eq("user_id", user.id);
+
+    if (error) {
+      if (import.meta.env.DEV) {
+        console.error("Error deleting water log:", error);
+      }
+      throw error;
+    }
+  };
+
+  // Guest mode: remove water log
+  const removeGuestWaterLog = (logId: string) => {
+    const existing = getGuestWaterLogs();
+    const filtered = existing.filter((log) => log.id !== logId);
+    const dates = filtered.map((log) => log.created_at);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dates));
+    return filtered;
+  };
+
   const addWaterGlass = () => {
     if (isGuest) {
       const newLog = addGuestWaterLog();
@@ -127,6 +161,39 @@ export const useWaterLogs = () => {
     }
   };
 
+  const removeWaterGlass = () => {
+    if (isGuest) {
+      const logs = getGuestWaterLogs();
+      // Remove the most recent log from today
+      const today = new Date().toISOString().split("T")[0];
+      const todayLogs = logs.filter((log) => log.created_at.startsWith(today));
+      if (todayLogs.length > 0) {
+        const mostRecent = todayLogs[0];
+        const filtered = removeGuestWaterLog(mostRecent.id);
+        queryClient.setQueryData(["water-logs", "guest"], filtered);
+      }
+    } else {
+      // For auth mode, find and delete most recent log from today
+      const logs = authQuery.data || [];
+      const today = new Date().toISOString().split("T")[0];
+      const todayLogs = logs.filter((log) => log.created_at.startsWith(today));
+      if (todayLogs.length > 0) {
+        const mostRecent = todayLogs[0];
+        queryClient.setQueryData(["water-logs", user?.id], (old: WaterLog[] = []) =>
+          old.filter((log) => log.id !== mostRecent.id)
+        );
+        // Delete from backend
+        deleteWaterLog(mostRecent.id).catch((error) => {
+          if (import.meta.env.DEV) {
+            console.error("Error removing water log:", error);
+          }
+          // Revert optimistic update
+          queryClient.invalidateQueries({ queryKey: ["water-logs"] });
+        });
+      }
+    }
+  };
+
   const logs = isGuest ? (guestQuery.data || []) : (authQuery.data || []);
 
   return {
@@ -134,6 +201,7 @@ export const useWaterLogs = () => {
     isLoading: isGuest ? guestQuery.isLoading : authQuery.isLoading,
     error: isGuest ? guestQuery.error : authQuery.error,
     addWaterGlass,
+    removeWaterGlass,
     isAdding: authMutation.isPending,
     addError: authMutation.error,
   };

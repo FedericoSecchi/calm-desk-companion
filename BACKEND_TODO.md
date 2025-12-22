@@ -1,124 +1,166 @@
-# Backend Requirements for Reminders Feature
+# Backend TODO - Calmo
 
-This document lists backend requirements discovered during frontend implementation. These are **NOT implemented yet** and should be added when backend persistence is needed.
+Este documento lista las tareas pendientes de backend que se identificaron durante el desarrollo del frontend.
 
-## Current Frontend Implementation
+## ✅ Implementado
 
-The Reminders feature currently works with:
-- **Guest mode**: All state is local (timer state, preset selection, sound preferences)
-- **Auth mode**: Preset and sound preferences are persisted via `reminder_settings` table
-- **Timer state**: Always starts fresh on page load (not persisted)
+### Tablas Existentes
 
-## Backend Requirements
+1. **`profiles`**
+   - Perfiles de usuario
+   - RLS habilitado
 
-### 1. Timer State Persistence (Optional)
+2. **`pain_records`**
+   - Registros de dolor
+   - Campos: `id`, `user_id`, `intensity`, `area`, `note`, `created_at`
+   - RLS habilitado
 
-**Current Behavior:** Timer resets to work phase on page refresh.
+3. **`reminder_settings`**
+   - Configuración del timer de Recordatorios
+   - Campos: `user_id`, `preset`, `sound_enabled`, `notifications_enabled`
+   - RLS habilitado
 
-**If Needed:**
-- Store current timer state (phase, time remaining, is running)
-- Table: `reminder_timer_state` or extend `reminder_settings`
-- Fields:
-  - `current_phase` (work | rest)
-  - `time_remaining_seconds` (integer)
-  - `is_running` (boolean)
-  - `last_updated` (timestamp)
+4. **`water_logs`**
+   - Registros de vasos de agua
+   - Campos: `id`, `user_id`, `created_at`
+   - RLS habilitado
 
-**Decision:** Not implemented. Timer state is ephemeral by design - users start fresh each session.
+5. **`break_logs`**
+   - Registros de pausas completadas
+   - Campos: `id`, `user_id`, `type` ("reminder" | "exercise" | "other"), `created_at`
+   - RLS habilitado
 
-### 2. Reminder History/Logs
+## 🔨 Pendiente
 
-**Current Behavior:** Breaks are logged via `break_logs` table when REST phase completes.
+### 1. Manual Break Adjustments
 
-**Status:** ✅ Already implemented via `break_logs` table.
+**Estado:** Funciona en guest mode con `localStorage`, pero no persiste en auth mode.
 
-### 3. Custom Work/Rest Durations (Future Enhancement)
+**Necesidad:**
+- Tabla: `manual_break_adjustments`
+- Campos:
+  - `id` (UUID, primary key)
+  - `user_id` (UUID, foreign key to auth.users)
+  - `date` (DATE, fecha del ajuste)
+  - `adjustment` (INTEGER, puede ser positivo o negativo)
+  - `created_at` (TIMESTAMP)
+- Índices:
+  - `(user_id, date)` para queries rápidas
+- RLS: Usuarios solo pueden ver/insertar sus propios ajustes
 
-**Current Behavior:** Users can only select presets (Ligero, Standard, Enfoque).
+**Uso:**
+- Permite a usuarios corregir manualmente su contador de pausas del día
+- Se suma a las pausas del timer para obtener el total
 
-**If Needed:**
-- Allow users to customize work and rest durations
-- Add fields to `reminder_settings`:
-  - `custom_work_minutes` (integer, nullable)
-  - `custom_rest_minutes` (integer, nullable)
-- If custom values exist, use them instead of preset defaults
+**Prioridad:** Media (funciona en guest mode, pero necesaria para auth mode)
 
-**Decision:** Not implemented. Presets provide good UX without complexity.
+### 2. Múltiples Zonas de Dolor
 
-### 4. Notification Scheduling (Background)
+**Estado:** El frontend está preparado para múltiples zonas, pero el backend solo soporta una.
 
-**Current Behavior:** Notifications only fire when app is open and timer completes.
+**Opciones de Implementación:**
 
-**If Needed:**
-- Schedule notifications in background (Service Worker)
-- Store scheduled notification times
-- Requires Service Worker implementation
-- Browser limitations: Notifications may not work reliably in background on all platforms
+**Opción A: Cambiar `area` a `areas` (array)**
+- Modificar columna `area` en `pain_records` de `TEXT` a `TEXT[]` (PostgreSQL array)
+- Ventaja: Simple, no requiere cambios en queries
+- Desventaja: Menos normalizado, más difícil de consultar por zona específica
 
-**Decision:** Not implemented. Current in-app notifications are sufficient for MVP.
+**Opción B: Tabla relacionada `pain_record_areas`**
+- Crear nueva tabla: `pain_record_areas`
+- Campos: `id`, `pain_record_id`, `area` (TEXT)
+- Relación: `pain_record_areas.pain_record_id → pain_records.id`
+- Ventaja: Normalizado, fácil de consultar por zona
+- Desventaja: Requiere JOINs en queries
 
-### 5. Reminder Statistics
+**Recomendación:** Opción A (más simple, suficiente para el caso de uso)
 
-**Current Behavior:** Break logs are tracked but not aggregated for reminders page.
+**Prioridad:** Baja (funcionalidad actual es suficiente)
 
-**If Needed:**
-- Aggregate break logs by reminder type
-- Show completion rate, average intervals
-- Could reuse existing `break_logs` table with queries
+### 3. Reset Diario Manual
 
-**Decision:** Not implemented. Dashboard stats already show break counts.
+**Estado:** Los resets automáticos funcionan (por cambio de fecha), pero no hay UI para reset manual.
 
-## Summary
+**Necesidad:**
+- No requiere backend nuevo
+- Solo necesita UI en Dashboard:
+  - Botón "Reset ajustes del día"
+  - Botón "Reset agua del día"
+- Estos botones llamarían a `resetToday()` del hook `useManualBreakAdjustments`
 
-**Implemented:**
-- ✅ Preset selection persistence (`reminder_settings.preset`)
-- ✅ Sound preference persistence (`reminder_settings.sound_enabled`)
-- ✅ Break logging (`break_logs` table)
-- ✅ Timer state persistence (localStorage, works in Guest and Auth modes)
+**Prioridad:** Baja (resets automáticos funcionan)
 
-**Not Implemented (By Design):**
-- ❌ Timer state persistence in Supabase (localStorage sufficient for single-device)
-- ❌ Custom durations (presets are sufficient)
-- ❌ Background notification scheduling (in-app only)
-- ❌ Reminder-specific statistics (dashboard stats cover this)
-- ❌ Exercise recommendation backend (UI placeholder exists, backend TODO)
+### 4. Recordatorios de Agua Avanzados
 
-## Updated Requirements (Latest Round)
+**Estado:** Documentado como futuro, no implementado.
 
-### Timer State Persistence (localStorage)
-**Status:** ✅ Implemented in localStorage
+**Necesidad:**
+- Tabla: `water_reminder_settings`
+- Campos:
+  - `user_id` (UUID)
+  - `enabled` (BOOLEAN)
+  - `interval_minutes` (INTEGER, intervalo entre recordatorios)
+  - `auto_enable_during_focus` (BOOLEAN, activar automáticamente durante foco)
+- Integración con timer de Recordatorios
+- Notificaciones independientes del timer
 
-**Current Behavior:**
-- Timer state persists to localStorage on every change
-- On reload, computes elapsed time using `Date.now()` diff
-- Handles phase transitions if timer finished while app was closed
-- Works in both Guest and Auth modes
+**Prioridad:** Baja (funcionalidad básica de agua funciona)
 
-**If Cross-Device Sync Needed:**
-- Store timer state in Supabase `reminder_timer_state` table
-- Sync on app open/close
-- Handle conflicts if timer running on multiple devices
-- Fields: `current_phase`, `remaining_seconds`, `last_tick_timestamp`, `is_running`, `preset_id`
+### 5. Ejercicios Completados
 
-### Exercise Recommendations
-**Status:** UI placeholder exists, backend TODO
+**Estado:** La sección Ejercicios existe pero no persiste completados.
 
-**Current Behavior:**
-- Calm suggestion card appears after REST completion
-- "Ver ejercicios" button disabled with TODO comment
-- User can dismiss with "Tal vez después"
+**Necesidad:**
+- Tabla: `exercise_completions`
+- Campos:
+  - `id` (UUID)
+  - `user_id` (UUID)
+  - `exercise_id` (TEXT, referencia al ejercicio)
+  - `completed_at` (TIMESTAMP)
+- RLS habilitado
+- Integración con recomendaciones después de REST
 
-**If Needed:**
-- Backend API or content database for exercise suggestions
-- Exercise library with metadata (duration, difficulty, body parts)
-- Recommendation algorithm (user history, time of day, etc.)
-- Integration with Exercises page/module
+**Prioridad:** Media (mejora UX de ejercicios)
 
-## Migration Notes
+### 6. Análisis y Recomendaciones (IA)
 
-If any of these features are needed later:
-1. Review this document
-2. Create new migration files
-3. Update `useReminderSettings` hook
-4. Update UI to support new features
+**Estado:** Documentado como futuro, no implementado.
 
+**Necesidad:**
+- Backend para análisis de patrones
+- API para recomendaciones personalizadas
+- Posible integración con servicios externos de IA
+
+**Prioridad:** Muy Baja (funcionalidad core funciona sin esto)
+
+## Notas de Implementación
+
+### Migraciones
+
+Todas las migraciones deben:
+1. Ser idempotentes (usar `IF NOT EXISTS`, `DROP IF EXISTS`)
+2. Incluir RLS policies
+3. Incluir índices apropiados
+4. Ser reversibles (documentar rollback)
+
+### RLS (Row Level Security)
+
+Todas las tablas deben:
+- Habilitar RLS: `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;`
+- Políticas para SELECT: Usuarios solo ven sus propios registros
+- Políticas para INSERT: Usuarios solo pueden insertar con su `user_id`
+- Políticas para UPDATE/DELETE: Usuarios solo pueden modificar sus propios registros
+
+### Índices
+
+Índices recomendados para performance:
+- `(user_id, created_at DESC)` para queries por usuario y fecha
+- `(user_id, date)` para queries de ajustes manuales
+- `(created_at DESC)` para queries globales de fecha
+
+## Testing
+
+Antes de implementar cualquier cambio:
+1. Verificar que no rompe guest mode
+2. Verificar que RLS funciona correctamente
+3. Verificar que los índices mejoran performance
+4. Probar con datos reales (no solo mock)

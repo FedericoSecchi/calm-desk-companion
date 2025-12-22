@@ -2,19 +2,30 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 
+/**
+ * PainRecord Interface
+ * 
+ * Current model: Single area per record
+ * Future model: Multiple areas per record (see HABITS_MODEL.md)
+ * 
+ * TODO: When backend supports multiple areas:
+ * - Change `area: string` to `areas: string[]`
+ * - Update createPainRecord to handle array
+ * - Update Pain.tsx UI to allow multiple area selection
+ */
 export interface PainRecord {
   id: string;
   user_id: string;
-  area: string;
-  intensity: number;
-  notes: string | null;
+  area: string; // TODO: Change to `areas: string[]` when backend supports it
+  intensity: number; // 1-10 (general intensity or average if multiple areas)
+  notes: string | null; // Free text for specifying other discomforts
   created_at: string;
 }
 
 export interface CreatePainRecord {
-  area: string;
+  area: string; // TODO: Change to `areas: string[]` when backend supports it
   intensity: number;
-  notes?: string;
+  notes?: string; // Free text for specifying other discomforts
 }
 
 // Fetch pain records for authenticated user

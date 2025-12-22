@@ -18,6 +18,13 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { 
   Play, 
   Pause, 
   SkipForward, 
@@ -28,19 +35,26 @@ import {
   Loader2,
   Coffee,
   Briefcase,
-  Sparkles
+  Sparkles,
+  ChevronRight
 } from "lucide-react";
 import { useReminderSettings } from "@/hooks/useReminderSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useFocusTimer, presets } from "@/contexts/FocusTimerContext";
 
 const Reminders = () => {
   const { isGuest } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { settings, isLoading, updateSettings, isUpdating } = useReminderSettings();
+  
+  // Check if user came from Dashboard to show rhythm selection modal
+  const showRhythmModal = searchParams.get("from") === "dashboard" && !isRunning;
+  const [rhythmModalOpen, setRhythmModalOpen] = useState(showRhythmModal);
   
   // Get timer state and controls from global context
   const focusTimerContext = useFocusTimer();
@@ -57,6 +71,7 @@ const Reminders = () => {
     formatTime,
     getPresetConfig,
     lastRestCompletion,
+    startTimer,
   } = focusTimerContext;
   
   // DEV-only debug: Log provider ID to prove single context instance
@@ -89,13 +104,37 @@ const Reminders = () => {
       if (!isGuest) {
         toast({
           title: "Configuración guardada",
-          description: `Preset ${preset} actualizado`,
+          description: `Ritmo ${preset} actualizado`,
         });
       }
     } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo guardar la configuración",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle rhythm selection from modal
+  const handleRhythmSelect = async (presetId: "light" | "standard" | "focus") => {
+    try {
+      await setPreset(presetId);
+      setRhythmModalOpen(false);
+      // Remove query param
+      setSearchParams({});
+      // Start timer after selecting rhythm
+      setTimeout(() => {
+        startTimer();
+        toast({
+          title: "¡Foco iniciado!",
+          description: "El timer ha comenzado",
+        });
+      }, 300);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo iniciar el foco",
         variant: "destructive",
       });
     }
@@ -144,7 +183,42 @@ const Reminders = () => {
   };
 
   return (
-    <div className="p-4 lg:p-8 max-w-2xl mx-auto">
+    <>
+      {/* Rhythm Selection Modal (shown when coming from Dashboard) */}
+      <Dialog open={rhythmModalOpen} onOpenChange={setRhythmModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Elige tu ritmo de trabajo</DialogTitle>
+            <DialogDescription>
+              Selecciona el ritmo que mejor se adapte a tu día
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            {presets.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => handleRhythmSelect(preset.id as "light" | "standard" | "focus")}
+                disabled={isUpdating}
+                className="w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between text-left hover:border-primary/50 disabled:opacity-50 disabled:cursor-not-allowed border-border bg-card"
+              >
+                <div>
+                  <p className="font-medium text-foreground">{preset.name}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {preset.description}
+                  </p>
+                </div>
+                {isUpdating ? (
+                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                )}
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="p-4 lg:p-8 max-w-2xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -351,7 +425,8 @@ const Reminders = () => {
           </div>
         </div>
       </motion.div>
-    </div>
+      </div>
+    </>
   );
 };
 
