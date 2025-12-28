@@ -409,6 +409,16 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
   }, []);
 
   const setPreset = useCallback(async (preset: PresetId) => {
+    // Prevent preset change while timer is running (defensive guard)
+    // This should not be reached if UI properly disables the controls,
+    // but provides safety in case of direct calls
+    if (isRunning) {
+      if (import.meta.env.DEV) {
+        console.warn("[FocusTimerContext] Attempted to change preset while timer is running");
+      }
+      return;
+    }
+
     const oldPreset = selectedPreset;
     setSelectedPreset(preset);
     
@@ -432,7 +442,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
         throw error; // Re-throw so caller can handle
       }
     }
-  }, [isGuest, updateSettings, selectedPreset, getPresetConfig]);
+  }, [isGuest, updateSettings, selectedPreset, getPresetConfig, isRunning]);
 
   const setSoundEnabled = useCallback(async (enabled: boolean) => {
     setSoundEnabledState(enabled);

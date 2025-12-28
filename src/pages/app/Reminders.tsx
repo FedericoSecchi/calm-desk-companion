@@ -111,6 +111,16 @@ const Reminders = () => {
   }, [currentPhase, isRunning, timeRemaining, lastRestCompletion]);
 
   const handlePresetChange = async (preset: "light" | "standard" | "focus") => {
+    // Prevent frequency change while timer is running
+    if (isRunning) {
+      toast({
+        title: "Pausá el timer primero",
+        description: "Para cambiar el ritmo, primero pausá el timer. Al cambiarlo, el tiempo se reiniciará.",
+        duration: 4000,
+      });
+      return;
+    }
+
     try {
       await setPreset(preset);
       if (!isGuest) {
@@ -354,12 +364,13 @@ const Reminders = () => {
             <button
               key={preset.id}
               onClick={() => handlePresetChange(preset.id as "light" | "standard" | "focus")}
-              disabled={isUpdating}
+              disabled={isUpdating || isRunning}
               className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
                 selectedPreset === preset.id
                   ? "border-primary bg-primary/5"
                   : "border-border bg-card hover:border-border/80"
-              } ${isUpdating ? "opacity-50 cursor-not-allowed" : ""}`}
+              } ${isUpdating || isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
+              title={isRunning ? "Pausá el timer para cambiar el ritmo" : undefined}
             >
               <div className="text-left">
                 <p className="font-medium text-foreground">{preset.name}</p>
