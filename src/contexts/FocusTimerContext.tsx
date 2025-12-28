@@ -54,6 +54,7 @@ interface FocusTimerContextType {
   selectedPreset: PresetId;
   soundEnabled: boolean;
   lastRestCompletion: number; // Timestamp of last REST completion (for exercise recommendation)
+  showEndOfFocusDialog: boolean; // Flag to show end-of-focus UI when REST completes
   providerId: string; // Unique ID to prove single provider instance
   
   // Actions
@@ -63,6 +64,7 @@ interface FocusTimerContextType {
   skipToNextPhase: () => void;
   setPreset: (preset: PresetId) => void;
   setSoundEnabled: (enabled: boolean) => void;
+  dismissEndOfFocusDialog: () => void; // Dismiss the end-of-focus dialog
   
   // Helpers
   getPresetConfig: (presetId: PresetId) => PresetConfig;
@@ -165,6 +167,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     savedState?.remaining ?? presetConfig.workMinutes * 60
   );
   const [lastRestCompletion, setLastRestCompletion] = useState<number>(0);
+  const [showEndOfFocusDialog, setShowEndOfFocusDialog] = useState<boolean>(false);
 
   // Sync with database settings
   useEffect(() => {
@@ -355,6 +358,9 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
           // Log the completed break (counts as habit)
           logBreak("reminder");
           
+          // Show end-of-focus dialog (calm, non-blocking UI)
+          setShowEndOfFocusDialog(true);
+          
           triggerNotificationAndSound(
             "Pausa completada",
             "¡Bien hecho! Vuelve al trabajo.",
@@ -442,6 +448,10 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     }
   }, [isGuest, updateSettings]);
 
+  const dismissEndOfFocusDialog = useCallback(() => {
+    setShowEndOfFocusDialog(false);
+  }, []);
+
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -455,6 +465,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     selectedPreset,
     soundEnabled,
     lastRestCompletion,
+    showEndOfFocusDialog,
     providerId,
     startTimer,
     pauseTimer,
@@ -462,6 +473,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     skipToNextPhase,
     setPreset,
     setSoundEnabled,
+    dismissEndOfFocusDialog,
     getPresetConfig,
     formatTime,
   };
