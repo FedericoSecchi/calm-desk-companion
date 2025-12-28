@@ -15,7 +15,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
   Dialog,
@@ -388,6 +388,26 @@ const Reminders = () => {
             </button>
           ))}
         </div>
+
+        {/* Inline info message when timer is running */}
+        <AnimatePresence>
+          {isRunning && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-4 p-3 rounded-xl bg-muted/50 border border-border/50"
+            >
+              <p className="text-sm text-foreground font-medium mb-1">
+                Para cambiar el ritmo, primero pausá el timer.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Al reanudar, el tiempo se reiniciará con la nueva frecuencia.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Exercise Recommendation (shown after REST completion) */}
