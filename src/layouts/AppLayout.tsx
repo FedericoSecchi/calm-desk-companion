@@ -29,9 +29,17 @@ const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { isGuest } = useAuth();
+  const { showEndOfFocusDialog, dismissEndOfFocusDialog } = useFocusTimer();
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <>
+      {/* End-of-Focus Dialog - visible from any route when REST phase completes */}
+      <EndOfFocusDialog 
+        open={showEndOfFocusDialog} 
+        onClose={dismissEndOfFocusDialog}
+      />
+      
+      <div className="min-h-screen bg-background flex">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-card border-r border-border">
         <div className="p-6">
