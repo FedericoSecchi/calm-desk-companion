@@ -54,13 +54,14 @@ if (isFreshTransition) {
 - Ensures visibility in local development
 
 ### 3. Integration
-**Location**: `src/pages/app/Reminders.tsx`
+**Location**: `src/layouts/AppLayout.tsx`
 
 **Integration Points**:
 - Imported `EndOfFocusDialog` component
 - Extracted `showEndOfFocusDialog` and `dismissEndOfFocusDialog` from context
-- Rendered at top of component JSX (before rhythm selection modal)
-- Dialog is visible across all app routes (context is global)
+- Rendered at top of AppLayout (before main content)
+- **Dialog is visible from ANY route** (Dashboard, Reminders, Exercises, Pain, Settings)
+- This ensures the end-of-focus experience is always accessible, regardless of which page the user is on
 
 **Flow**:
 1. User completes REST phase

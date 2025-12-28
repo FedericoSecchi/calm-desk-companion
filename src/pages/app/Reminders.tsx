@@ -43,7 +43,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useFocusTimer, presets } from "@/contexts/FocusTimerContext";
-import { EndOfFocusDialog } from "@/components/EndOfFocusDialog";
 
 const Reminders = () => {
   const { isGuest } = useAuth();
@@ -69,8 +68,6 @@ const Reminders = () => {
     getPresetConfig,
     lastRestCompletion,
     startTimer,
-    showEndOfFocusDialog,
-    dismissEndOfFocusDialog,
   } = focusTimerContext;
   
   // Check if user came from Dashboard to show rhythm selection modal
@@ -201,12 +198,6 @@ const Reminders = () => {
 
   return (
     <>
-      {/* End-of-Focus Dialog (shown when REST phase completes) */}
-      <EndOfFocusDialog 
-        open={showEndOfFocusDialog} 
-        onClose={dismissEndOfFocusDialog}
-      />
-
       {/* Rhythm Selection Modal (shown when coming from Dashboard) */}
       <Dialog 
         open={rhythmModalOpen} 

@@ -14,6 +14,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { FloatingTimer } from "@/components/FloatingTimer";
+import { EndOfFocusDialog } from "@/components/EndOfFocusDialog";
+import { useFocusTimer } from "@/contexts/FocusTimerContext";
 
 const navItems = [
   { to: "/app", icon: LayoutDashboard, label: "Inicio", end: true },
@@ -172,6 +174,7 @@ const AppLayout = () => {
         </ul>
       </nav>
     </div>
+    </>
   );
 };
 
