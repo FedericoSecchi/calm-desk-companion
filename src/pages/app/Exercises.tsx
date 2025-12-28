@@ -8,24 +8,42 @@ import {
   Check,
   X
 } from "lucide-react";
+import { ExercisePlayer } from "@/components/ExercisePlayer";
+import { getExerciseById } from "@/lib/exercises";
+import { Exercise as ExerciseType } from "@/lib/exerciseTypes";
 
-interface Exercise {
+// Map old exercise IDs to new exercise engine IDs
+const exerciseIdMap: Record<string, string> = {
+  "1": "neck-rotation",
+  "2": "shoulder-stretch",
+  "3": "lumbar-flex",
+  "4": "lumbar-flex", // Gato-vaca mapped to lumbar-flex (similar exercise)
+  "5": "wrist-stretch",
+  "6": "wrist-stretch", // Ejercicio de dedos mapped to wrist-stretch
+  "7": "lumbar-flex", // Rotación de tronco mapped to lumbar-flex
+  "8": "lumbar-flex", // Estiramiento lateral mapped to lumbar-flex
+};
+
+// Legacy exercise interface for display (mapped to new engine)
+interface ExerciseDisplay {
   id: string;
   name: string;
   duration: string;
   area: string;
   difficulty: "easy" | "medium";
   description: string;
+  engineId?: string; // New exercise engine ID
 }
 
-const exercises: Exercise[] = [
+const exercises: ExerciseDisplay[] = [
   {
     id: "1",
     name: "Rotación de cuello",
     duration: "2 min",
     area: "cervical",
     difficulty: "easy",
-    description: "Movimientos suaves para aliviar tensión en el cuello"
+    description: "Movimientos suaves para aliviar tensión en el cuello",
+    engineId: "neck-rotation",
   },
   {
     id: "2",
@@ -33,7 +51,8 @@ const exercises: Exercise[] = [
     duration: "3 min",
     area: "cervical",
     difficulty: "easy",
-    description: "Libera la tensión acumulada en hombros y trapecios"
+    description: "Libera la tensión acumulada en hombros y trapecios",
+    engineId: "shoulder-stretch",
   },
   {
     id: "3",
@@ -41,7 +60,8 @@ const exercises: Exercise[] = [
     duration: "2 min",
     area: "lumbar",
     difficulty: "easy",
-    description: "Estira la espalda baja sin levantarte de la silla"
+    description: "Estira la espalda baja sin levantarte de la silla",
+    engineId: "lumbar-flex",
   },
   {
     id: "4",
@@ -49,7 +69,8 @@ const exercises: Exercise[] = [
     duration: "3 min",
     area: "lumbar",
     difficulty: "easy",
-    description: "Movilidad de columna adaptada para la oficina"
+    description: "Movilidad de columna adaptada para la oficina",
+    engineId: "lumbar-flex",
   },
   {
     id: "5",
@@ -57,7 +78,8 @@ const exercises: Exercise[] = [
     duration: "2 min",
     area: "wrist",
     difficulty: "easy",
-    description: "Previene el síndrome del túnel carpiano"
+    description: "Previene el síndrome del túnel carpiano",
+    engineId: "wrist-stretch",
   },
   {
     id: "6",
@@ -65,7 +87,8 @@ const exercises: Exercise[] = [
     duration: "1 min",
     area: "wrist",
     difficulty: "easy",
-    description: "Mejora la circulación en manos y dedos"
+    description: "Mejora la circulación en manos y dedos",
+    engineId: "wrist-stretch",
   },
   {
     id: "7",
@@ -73,7 +96,8 @@ const exercises: Exercise[] = [
     duration: "3 min",
     area: "lumbar",
     difficulty: "medium",
-    description: "Aumenta la movilidad de toda la columna"
+    description: "Aumenta la movilidad de toda la columna",
+    engineId: "lumbar-flex",
   },
   {
     id: "8",
@@ -81,7 +105,8 @@ const exercises: Exercise[] = [
     duration: "2 min",
     area: "lumbar",
     difficulty: "easy",
-    description: "Estira los músculos laterales del tronco"
+    description: "Estira los músculos laterales del tronco",
+    engineId: "lumbar-flex",
   },
 ];
 
@@ -94,17 +119,39 @@ const areaLabels: Record<string, string> = {
 const Exercises = () => {
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [playingExercise, setPlayingExercise] = useState<ExerciseType | null>(null);
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
 
   const filteredExercises = selectedArea
     ? exercises.filter((e) => e.area === selectedArea)
     : exercises;
 
-  const markComplete = (id: string) => {
-    if (!completedExercises.includes(id)) {
-      setCompletedExercises([...completedExercises, id]);
+  const handleStartExercise = (exerciseId: string) => {
+    // Map old exercise ID to new engine ID
+    const engineId = exerciseIdMap[exerciseId] || exerciseId;
+    const exercise = getExerciseById(engineId);
+    if (exercise) {
+      setPlayingExercise(exercise);
+      setSelectedExercise(null); // Close detail modal
+    } else {
+      // Fallback: if exercise not found in engine, show error
+      if (import.meta.env.DEV) {
+        console.warn(`[Exercises] Exercise not found: ${engineId}`);
+      }
     }
-    setSelectedExercise(null);
+  };
+
+  const handleExerciseComplete = () => {
+    if (playingExercise) {
+      if (!completedExercises.includes(playingExercise.id)) {
+        setCompletedExercises([...completedExercises, playingExercise.id]);
+      }
+    }
+    setPlayingExercise(null);
+  };
+
+  const handleExerciseClose = () => {
+    setPlayingExercise(null);
   };
 
   return (
@@ -264,14 +311,23 @@ const Exercises = () => {
               <Button 
                 variant="hero" 
                 className="flex-1"
-                onClick={() => markComplete(selectedExercise.id)}
+                onClick={() => handleStartExercise(selectedExercise.id)}
               >
-                <Check className="h-4 w-4 mr-2" />
-                Completado
+                <Play className="h-4 w-4 mr-2" />
+                Empezar ejercicio
               </Button>
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* Exercise Player */}
+      {playingExercise && (
+        <ExercisePlayer
+          exercise={playingExercise}
+          onComplete={handleExerciseComplete}
+          onClose={handleExerciseClose}
+        />
       )}
     </div>
   );

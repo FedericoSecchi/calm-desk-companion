@@ -43,6 +43,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useFocusTimer, presets } from "@/contexts/FocusTimerContext";
+import { ExercisePlayer } from "@/components/ExercisePlayer";
+import { getExerciseById } from "@/lib/exercises";
+import { Exercise as ExerciseType } from "@/lib/exerciseTypes";
 
 const Reminders = () => {
   const { isGuest } = useAuth();
@@ -92,6 +95,7 @@ const Reminders = () => {
 
   // Track if we've shown exercise recommendation after REST completion
   const [showExerciseRecommendation, setShowExerciseRecommendation] = useState(false);
+  const [playingExercise, setPlayingExercise] = useState<ExerciseType | null>(null);
 
   // Show exercise recommendation when REST phase just completed
   useEffect(() => {
@@ -409,11 +413,19 @@ const Reminders = () => {
                     size="sm"
                     className="text-primary-foreground"
                     onClick={() => {
-                      setShowExerciseRecommendation(false);
-                      navigate("/app/exercises");
+                      // Suggest a quick exercise (neck rotation - 2 min)
+                      const suggestedExercise = getExerciseById("neck-rotation");
+                      if (suggestedExercise) {
+                        setShowExerciseRecommendation(false);
+                        setPlayingExercise(suggestedExercise);
+                      } else {
+                        // Fallback: navigate to exercises page
+                        setShowExerciseRecommendation(false);
+                        navigate("/app/exercises");
+                      }
                     }}
                   >
-                    Ver ejercicios
+                    Empezar ejercicio
                   </Button>
                 </div>
               </div>
@@ -448,6 +460,20 @@ const Reminders = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Exercise Player (shown when user starts exercise from recommendation) */}
+      {playingExercise && (
+        <ExercisePlayer
+          exercise={playingExercise}
+          onComplete={() => {
+            setPlayingExercise(null);
+            // Exercise completes, user returns to REST phase (which continues running)
+          }}
+          onClose={() => {
+            setPlayingExercise(null);
+          }}
+        />
+      )}
       </div>
     </>
   );
