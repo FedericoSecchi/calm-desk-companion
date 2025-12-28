@@ -8,7 +8,8 @@ import {
   Target,
   Plus,
   Minus,
-  Loader2
+  Loader2,
+  Clock
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
@@ -16,6 +17,7 @@ import { useWaterLogs } from "@/hooks/useWaterLogs";
 import { useManualBreakAdjustments } from "@/hooks/useManualBreakAdjustments";
 import { useToast } from "@/hooks/use-toast";
 import { useMemo } from "react";
+import { useFocusTimer, presets } from "@/contexts/FocusTimerContext";
 
 const Dashboard = () => {
   const { toast } = useToast();
@@ -23,10 +25,17 @@ const Dashboard = () => {
   const stats = useDashboardStats();
   const { addWaterGlass, removeWaterGlass, isAdding: isAddingWater } = useWaterLogs();
   const { adjustToday } = useManualBreakAdjustments();
+  const { isRunning, timeRemaining, selectedPreset, formatTime, getPresetConfig } = useFocusTimer();
   
   const handleStartFocus = () => {
     navigate("/app/reminders?from=dashboard", { replace: false });
   };
+
+  const handleTimerStatusClick = () => {
+    navigate("/app/reminders", { replace: false });
+  };
+
+  const currentPreset = getPresetConfig(selectedPreset);
 
   const handleAddWater = () => {
     addWaterGlass();
@@ -188,19 +197,41 @@ const Dashboard = () => {
             ¿Qué querés hacer hoy?
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Button 
-              variant="warm" 
-              size="lg" 
-              className="justify-start h-auto py-4"
-              onClick={handleStartFocus}
-              type="button"
-            >
-              <Play className="h-5 w-5 mr-3" />
-              <div className="text-left">
-                <p className="font-medium">Iniciar foco</p>
-                <p className="text-xs opacity-80">Elige tu ritmo de trabajo</p>
-              </div>
-            </Button>
+            {isRunning ? (
+              <button
+                onClick={handleTimerStatusClick}
+                className="bg-card rounded-xl p-4 border border-border/30 hover:border-border/50 transition-all text-left group cursor-pointer"
+                type="button"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {formatTime(timeRemaining)} restantes
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {currentPreset.name}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ) : (
+              <Button 
+                variant="warm" 
+                size="lg" 
+                className="justify-start h-auto py-4"
+                onClick={handleStartFocus}
+                type="button"
+              >
+                <Play className="h-5 w-5 mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Iniciar foco</p>
+                  <p className="text-xs opacity-80">Elige tu ritmo de trabajo</p>
+                </div>
+              </Button>
+            )}
             
             <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
               <Link to="/app/pain">
