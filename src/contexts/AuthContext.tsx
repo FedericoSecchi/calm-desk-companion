@@ -51,7 +51,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (selectError && selectError.code !== "PGRST116") {
         // PGRST116 = no rows returned, which is expected if profile doesn't exist
         if (import.meta.env.DEV) {
-          console.warn("Error checking profile:", selectError);
+          if (import.meta.env.DEV) {
+            console.warn("Error checking profile:", selectError);
+          }
         }
       }
 
@@ -75,7 +77,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             console.debug("Profile already exists (race condition)");
           }
         } else if (import.meta.env.DEV) {
-          console.log("✓ Profile created successfully");
+          console.debug("✓ Profile created successfully");
         }
       }
     } catch (error) {
@@ -149,7 +151,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } catch (error) {
           // Ignore unsubscribe errors
           if (import.meta.env.DEV) {
-            console.warn("Error unsubscribing from auth:", error);
+            if (import.meta.env.DEV) {
+              console.warn("Error unsubscribing from auth:", error);
+            }
           }
         }
       }

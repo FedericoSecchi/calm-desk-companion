@@ -3,6 +3,8 @@
  * Used for computing streak and aggregating daily stats
  */
 
+import { formatDateToYYYYMMDD, getTodayDateString } from "./utils";
+
 export interface ActivityLog {
   created_at: string;
 }
@@ -30,7 +32,7 @@ export function calculateStreak(
   const allDates = new Set<string>();
   
   [...breakLogs, ...waterLogs, ...painLogs].forEach((log) => {
-    const date = new Date(log.created_at).toISOString().split("T")[0];
+    const date = formatDateToYYYYMMDD(log.created_at);
     allDates.add(date);
   });
 
@@ -42,13 +44,13 @@ export function calculateStreak(
   const sortedDates = Array.from(allDates).sort().reverse();
 
   // Calculate streak from today backwards
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayDateString();
   let streak = 0;
   let currentDate = new Date(today);
 
   for (const dateStr of sortedDates) {
-    const logDate = new Date(dateStr).toISOString().split("T")[0];
-    const expectedDate = currentDate.toISOString().split("T")[0];
+    const logDate = formatDateToYYYYMMDD(dateStr);
+    const expectedDate = formatDateToYYYYMMDD(currentDate);
 
     if (logDate === expectedDate) {
       streak++;
@@ -67,9 +69,9 @@ export function calculateStreak(
  * Get count of activities for today
  */
 export function getTodayCount(logs: ActivityLog[]): number {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayDateString();
   return logs.filter((log) => {
-    const logDate = new Date(log.created_at).toISOString().split("T")[0];
+    const logDate = formatDateToYYYYMMDD(log.created_at);
     return logDate === today;
   }).length;
 }

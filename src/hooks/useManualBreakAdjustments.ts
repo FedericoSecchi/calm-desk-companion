@@ -16,6 +16,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { getTodayDateString } from "@/lib/utils";
 
 const STORAGE_KEY = "calmo_manual_break_adjustments";
 
@@ -23,11 +24,6 @@ interface ManualAdjustment {
   date: string; // ISO date string (YYYY-MM-DD)
   adjustment: number; // Can be positive or negative
 }
-
-// Get today's date as YYYY-MM-DD
-const getTodayDate = (): string => {
-  return new Date().toISOString().split("T")[0];
-};
 
 // Get adjustments from localStorage (guest mode)
 const getGuestAdjustments = (): Record<string, number> => {
@@ -70,13 +66,13 @@ export const useManualBreakAdjustments = () => {
 
   // Get today's adjustment
   const getTodayAdjustment = (): number => {
-    const today = getTodayDate();
+    const today = getTodayDateString();
     return adjustments[today] || 0;
   };
 
   // Adjust today's break count
   const adjustToday = (delta: number) => {
-    const today = getTodayDate();
+    const today = getTodayDateString();
     setAdjustments((prev) => {
       const current = prev[today] || 0;
       const newValue = current + delta;
@@ -90,7 +86,7 @@ export const useManualBreakAdjustments = () => {
 
   // Reset today's adjustment (manual reset)
   const resetToday = () => {
-    const today = getTodayDate();
+    const today = getTodayDateString();
     setAdjustments((prev) => {
       const { [today]: _, ...rest } = prev;
       return rest;

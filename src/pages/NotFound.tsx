@@ -7,7 +7,7 @@ const NotFound = () => {
   useEffect(() => {
     // Only log 404 errors in development
     if (import.meta.env.DEV) {
-      console.warn("404: Route not found:", location.pathname);
+      console.debug("404: Route not found:", location.pathname);
     }
   }, [location.pathname]);
 

@@ -6,6 +6,7 @@ import { Check, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePainRecords } from "@/hooks/usePainRecords";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatDateToYYYYMMDD } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const painAreas = [
@@ -33,7 +34,7 @@ const Pain = () => {
     
     // Group by date and calculate average
     const grouped = dataSource.reduce((acc, record) => {
-      const date = new Date(record.created_at || record.date).toISOString().split("T")[0];
+      const date = formatDateToYYYYMMDD(record.created_at || record.date);
       if (!acc[date]) {
         acc[date] = { date, intensities: [] };
       }

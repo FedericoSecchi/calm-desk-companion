@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
+import { getTodayDateString } from "@/lib/utils";
 
 export interface WaterLog {
   id: string;
@@ -165,7 +166,7 @@ export const useWaterLogs = () => {
     if (isGuest) {
       const logs = getGuestWaterLogs();
       // Remove the most recent log from today
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayDateString();
       const todayLogs = logs.filter((log) => log.created_at.startsWith(today));
       if (todayLogs.length > 0) {
         const mostRecent = todayLogs[0];
@@ -175,7 +176,7 @@ export const useWaterLogs = () => {
     } else {
       // For auth mode, find and delete most recent log from today
       const logs = authQuery.data || [];
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayDateString();
       const todayLogs = logs.filter((log) => log.created_at.startsWith(today));
       if (todayLogs.length > 0) {
         const mostRecent = todayLogs[0];
