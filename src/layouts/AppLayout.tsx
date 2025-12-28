@@ -29,6 +29,8 @@ const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { isGuest } = useAuth();
+  
+  // useFocusTimer is safe here because AppLayout is wrapped by FocusTimerProvider in App.tsx
   const { showEndOfFocusDialog, dismissEndOfFocusDialog } = useFocusTimer();
 
   return (
