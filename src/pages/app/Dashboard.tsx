@@ -13,7 +13,6 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useWaterLogs } from "@/hooks/useWaterLogs";
-import { useBreakLogs } from "@/hooks/useBreakLogs";
 import { useManualBreakAdjustments } from "@/hooks/useManualBreakAdjustments";
 import { useToast } from "@/hooks/use-toast";
 import { useMemo } from "react";
