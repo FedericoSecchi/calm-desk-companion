@@ -12,7 +12,7 @@ import {
   Minus,
   Loader2
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useWaterLogs } from "@/hooks/useWaterLogs";
 import { useBreakLogs } from "@/hooks/useBreakLogs";
@@ -21,10 +21,16 @@ import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const stats = useDashboardStats();
   const { addWaterGlass, removeWaterGlass, isAdding: isAddingWater } = useWaterLogs();
   const { logBreak, isLogging: isLoggingBreak } = useBreakLogs();
   const { adjustToday, resetToday } = useManualBreakAdjustments();
+  
+  const handleStartFocus = () => {
+    // Navigate to reminders with query param to trigger modal
+    navigate("/app/reminders?from=dashboard", { replace: false });
+  };
 
   const handleAddWater = () => {
     addWaterGlass();
@@ -198,14 +204,18 @@ const Dashboard = () => {
           Acciones rápidas
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Button variant="warm" size="lg" className="justify-start h-auto py-4" asChild>
-            <Link to="/app/reminders?from=dashboard">
-              <Play className="h-5 w-5 mr-3" />
-              <div className="text-left">
-                <p className="font-medium">Iniciar foco</p>
-                <p className="text-xs opacity-80">Elige tu ritmo de trabajo</p>
-              </div>
-            </Link>
+          <Button 
+            variant="warm" 
+            size="lg" 
+            className="justify-start h-auto py-4"
+            onClick={handleStartFocus}
+            type="button"
+          >
+            <Play className="h-5 w-5 mr-3" />
+            <div className="text-left">
+              <p className="font-medium">Iniciar foco</p>
+              <p className="text-xs opacity-80">Elige tu ritmo de trabajo</p>
+            </div>
           </Button>
           
           <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>

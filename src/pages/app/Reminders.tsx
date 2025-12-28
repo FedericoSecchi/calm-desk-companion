@@ -52,10 +52,6 @@ const Reminders = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { settings, isLoading, updateSettings, isUpdating } = useReminderSettings();
   
-  // Check if user came from Dashboard to show rhythm selection modal
-  const showRhythmModal = searchParams.get("from") === "dashboard" && !isRunning;
-  const [rhythmModalOpen, setRhythmModalOpen] = useState(showRhythmModal);
-  
   // Get timer state and controls from global context
   const focusTimerContext = useFocusTimer();
   const {
@@ -73,6 +69,18 @@ const Reminders = () => {
     lastRestCompletion,
     startTimer,
   } = focusTimerContext;
+  
+  // Check if user came from Dashboard to show rhythm selection modal
+  // Only show if timer is not already running
+  const shouldShowRhythmModal = searchParams.get("from") === "dashboard" && !isRunning;
+  const [rhythmModalOpen, setRhythmModalOpen] = useState(false);
+  
+  // Sync modal state with searchParams changes
+  useEffect(() => {
+    if (shouldShowRhythmModal) {
+      setRhythmModalOpen(true);
+    }
+  }, [shouldShowRhythmModal]);
   
   // DEV-only debug: Log provider ID to prove single context instance
   if (import.meta.env.DEV) {
@@ -119,24 +127,30 @@ const Reminders = () => {
   // Handle rhythm selection from modal
   const handleRhythmSelect = async (presetId: "light" | "standard" | "focus") => {
     try {
-      await setPreset(presetId);
+      // Close modal immediately for better UX
       setRhythmModalOpen(false);
-      // Remove query param
-      setSearchParams({});
-      // Start timer after selecting rhythm
-      setTimeout(() => {
-        startTimer();
-        toast({
-          title: "¡Foco iniciado!",
-          description: "El timer ha comenzado",
-        });
-      }, 300);
+      // Remove query param immediately
+      setSearchParams({}, { replace: true });
+      
+      // Set preset and start timer
+      await setPreset(presetId);
+      startTimer();
+      
+      toast({
+        title: "¡Foco iniciado!",
+        description: `Ritmo ${getPresetConfig(presetId).name} activado`,
+      });
     } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error("Error starting focus:", error);
+      }
       toast({
         title: "Error",
         description: "No se pudo iniciar el foco",
         variant: "destructive",
       });
+      // Reopen modal on error
+      setRhythmModalOpen(true);
     }
   };
 
@@ -185,7 +199,16 @@ const Reminders = () => {
   return (
     <>
       {/* Rhythm Selection Modal (shown when coming from Dashboard) */}
-      <Dialog open={rhythmModalOpen} onOpenChange={setRhythmModalOpen}>
+      <Dialog 
+        open={rhythmModalOpen} 
+        onOpenChange={(open) => {
+          setRhythmModalOpen(open);
+          // If modal is closed, remove query param
+          if (!open) {
+            setSearchParams({}, { replace: true });
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Elige tu ritmo de trabajo</DialogTitle>
