@@ -17,7 +17,7 @@ import { useWaterLogs } from "@/hooks/useWaterLogs";
 import { useManualBreakAdjustments } from "@/hooks/useManualBreakAdjustments";
 import { useToast } from "@/hooks/use-toast";
 import { useMemo } from "react";
-import { useFocusTimer, presets } from "@/contexts/FocusTimerContext";
+import { useFocusTimer } from "@/contexts/FocusTimerContext";
 
 const Dashboard = () => {
   const { toast } = useToast();
@@ -35,6 +35,7 @@ const Dashboard = () => {
     navigate("/app/reminders", { replace: false });
   };
 
+  // Get preset config (getPresetConfig has built-in fallback to standard)
   const currentPreset = getPresetConfig(selectedPreset);
 
   const handleAddWater = () => {
