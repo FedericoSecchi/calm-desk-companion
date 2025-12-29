@@ -282,6 +282,7 @@ const AppLayout = () => {
                   ? "ring-2 ring-primary ring-offset-2"
                   : ""
               )}
+              aria-label={isRunning ? `Timer activo: ${formatTime(timeRemaining)} restantes. Ir a Recordatorios.` : "Iniciar foco. Ir a Recordatorios."}
             >
               {isRunning ? (
                 <>
