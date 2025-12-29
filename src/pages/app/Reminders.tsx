@@ -55,7 +55,7 @@ const Reminders = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { settings, isLoading, updateSettings, isUpdating } = useReminderSettings();
+  const { settings, updateSettings, isUpdating } = useReminderSettings();
   
   // Get timer state and controls from global context
   const focusTimerContext = useFocusTimer();
