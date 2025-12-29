@@ -15,7 +15,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { FloatingTimer } from "@/components/FloatingTimer";
 import { EndOfFocusDialog } from "@/components/EndOfFocusDialog";
 import { useFocusTimer } from "@/contexts/FocusTimerContext";
 
@@ -227,10 +226,6 @@ const AppLayout = () => {
             </p>
           </div>
         )}
-        
-        {/* Top Timer Bar - integrated in normal flow (not fixed) to avoid overlap with fixed mobile header */}
-        {/* Mobile header is fixed (h-16), so content has pt-16. Timer appears below header in normal flow */}
-        <FloatingTimer />
         
         {/* Content area: pt-16 on mobile for fixed header (h-16), pb-24 for fixed bottom nav (h-16) + FAB elevation */}
         <div className="pt-16 lg:pt-0 pb-24 lg:pb-0 flex-1">
