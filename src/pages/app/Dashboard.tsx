@@ -197,87 +197,63 @@ const Dashboard = () => {
           <h3 className="font-heading text-base text-foreground/80 mb-3">
             ¿Qué querés hacer hoy?
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {isRunning ? (
-              <>
-                {/* Left button - Dolor */}
-                <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
-                  <Link to="/app/pain">
-                    <Activity className="h-5 w-5 mr-3" />
-                    <div className="text-left">
-                      <p className="font-medium">Registrar cómo me siento</p>
-                      <p className="text-xs text-muted-foreground">Registro corporal</p>
-                    </div>
-                  </Link>
-                </Button>
-
-                {/* Center - Timer state (passive, not a button) */}
-                <div
-                  onClick={handleTimerStatusClick}
-                  className="bg-card rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center cursor-pointer hover:border-border/70 transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                    <Clock className="h-5 w-5 text-primary" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground mb-1">
-                    Estás en foco
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatTime(timeRemaining)} restantes
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {currentPreset.name}
-                  </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+            {/* Left column - Dolor (always present) */}
+            <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
+              <Link to="/app/pain">
+                <Activity className="h-5 w-5 mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Registrar cómo me siento</p>
+                  <p className="text-xs text-muted-foreground">Registro corporal</p>
                 </div>
+              </Link>
+            </Button>
 
-                {/* Right button - Ejercicios */}
-                <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
-                  <Link to="/app/exercises">
-                    <Play className="h-5 w-5 mr-3" />
-                    <div className="text-left">
-                      <p className="font-medium">Ejercicio rápido</p>
-                      <p className="text-xs text-muted-foreground">2 minutos de movilidad</p>
-                    </div>
-                  </Link>
-                </Button>
-              </>
+            {/* Center column - Fixed slot: Iniciar foco OR Estás en foco */}
+            {isRunning ? (
+              <div
+                onClick={handleTimerStatusClick}
+                className="bg-card rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center cursor-pointer hover:border-border/70 transition-colors h-auto min-h-[80px]"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                </div>
+                <p className="text-sm font-medium text-foreground mb-1">
+                  Estás en foco
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatTime(timeRemaining)} restantes
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {currentPreset.name}
+                </p>
+              </div>
             ) : (
-              <>
-                <Button 
-                  variant="warm" 
-                  size="lg" 
-                  className="justify-start h-auto py-4"
-                  onClick={handleStartFocus}
-                  type="button"
-                >
-                  <Play className="h-5 w-5 mr-3" />
-                  <div className="text-left">
-                    <p className="font-medium">Iniciar foco</p>
-                    <p className="text-xs opacity-80">Elige tu ritmo de trabajo</p>
-                  </div>
-                </Button>
-                
-                <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
-                  <Link to="/app/pain">
-                    <Activity className="h-5 w-5 mr-3" />
-                    <div className="text-left">
-                      <p className="font-medium">Registrar cómo me siento</p>
-                      <p className="text-xs text-muted-foreground">Registro corporal</p>
-                    </div>
-                  </Link>
-                </Button>
-                
-                <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
-                  <Link to="/app/exercises">
-                    <Play className="h-5 w-5 mr-3" />
-                    <div className="text-left">
-                      <p className="font-medium">Ejercicio rápido</p>
-                      <p className="text-xs text-muted-foreground">2 minutos de movilidad</p>
-                    </div>
-                  </Link>
-                </Button>
-              </>
+              <Button 
+                variant="warm" 
+                size="lg" 
+                className="justify-start h-auto py-4 w-full"
+                onClick={handleStartFocus}
+                type="button"
+              >
+                <Play className="h-5 w-5 mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Iniciar foco</p>
+                  <p className="text-xs opacity-80">Elige tu ritmo de trabajo</p>
+                </div>
+              </Button>
             )}
+
+            {/* Right column - Ejercicios (always present) */}
+            <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
+              <Link to="/app/exercises">
+                <Play className="h-5 w-5 mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Ejercicio rápido</p>
+                  <p className="text-xs text-muted-foreground">2 minutos de movilidad</p>
+                </div>
+              </Link>
+            </Button>
           </div>
         </motion.div>
       </section>
