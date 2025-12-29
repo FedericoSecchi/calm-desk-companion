@@ -36,7 +36,9 @@ import {
   Coffee,
   Briefcase,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  Settings
 } from "lucide-react";
 import { useReminderSettings } from "@/hooks/useReminderSettings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,6 +68,7 @@ const Reminders = () => {
     toggleTimer,
     skipToNextPhase,
     setPreset,
+    setCustomTimings,
     setSoundEnabled,
     formatTime,
     getPresetConfig,
@@ -96,6 +99,12 @@ const Reminders = () => {
   // Track if we've shown exercise recommendation after REST completion
   const [showExerciseRecommendation, setShowExerciseRecommendation] = useState(false);
   const [playingExercise, setPlayingExercise] = useState<ExerciseType | null>(null);
+  
+  // Advanced section state
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [customWorkMinutes, setCustomWorkMinutes] = useState(45);
+  const [customRestMinutes, setCustomRestMinutes] = useState(5);
+  const [showResetWarning, setShowResetWarning] = useState(false);
 
   // Show exercise recommendation when REST phase just completed
   useEffect(() => {
@@ -113,12 +122,13 @@ const Reminders = () => {
   const handlePresetChange = async (preset: "light" | "standard" | "focus") => {
     // Prevent frequency change while timer is running
     if (isRunning) {
-      toast({
-        title: "Pausá el timer primero",
-        description: "Para cambiar el ritmo, primero pausá el timer. Al cambiarlo, el tiempo se reiniciará.",
-        duration: 4000,
-      });
-      return;
+      return; // UI should be disabled, but guard just in case
+    }
+
+    // Show reset warning if timer is paused
+    if (!isRunning && timeRemaining > 0) {
+      setShowResetWarning(true);
+      setTimeout(() => setShowResetWarning(false), 5000);
     }
 
     try {
@@ -136,6 +146,35 @@ const Reminders = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleCustomTimings = () => {
+    // Prevent change while timer is running
+    if (isRunning) {
+      return;
+    }
+
+    // Validate inputs
+    if (customWorkMinutes < 1 || customRestMinutes < 1) {
+      toast({
+        title: "Valores inválidos",
+        description: "Los minutos deben ser al menos 1",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show reset warning if timer is paused
+    if (!isRunning && timeRemaining > 0) {
+      setShowResetWarning(true);
+      setTimeout(() => setShowResetWarning(false), 5000);
+    }
+
+    setCustomTimings(customWorkMinutes, customRestMinutes);
+    toast({
+      title: "Ritmo personalizado aplicado",
+      description: `${customWorkMinutes} min trabajo · ${customRestMinutes} min descanso`,
+    });
   };
 
   // Handle rhythm selection from modal
@@ -408,6 +447,94 @@ const Reminders = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Reset warning when timer is paused and user changes rhythm */}
+        <AnimatePresence>
+          {showResetWarning && !isRunning && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20"
+            >
+              <p className="text-sm text-foreground font-medium">
+                El tiempo se reiniciará con el nuevo ritmo.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Advanced section - collapsible */}
+        <div className="mt-6">
+          <button
+            onClick={() => setAdvancedOpen(!advancedOpen)}
+            disabled={isRunning}
+            className={`w-full flex items-center justify-between p-3 rounded-xl border border-border/50 transition-all ${
+              isRunning ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/50"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Avanzado</span>
+            </div>
+            {advancedOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+
+          <AnimatePresence>
+            {advancedOpen && !isRunning && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-3 p-4 rounded-xl border border-border/50 bg-card/50"
+              >
+                <p className="text-sm font-medium text-foreground mb-3">Ritmo Personalizado</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      Trabajo (min)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={customWorkMinutes}
+                      onChange={(e) => setCustomWorkMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      Descanso (min)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={customRestMinutes}
+                      onChange={(e) => setCustomRestMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleCustomTimings}
+                    className="w-full"
+                    size="sm"
+                  >
+                    Aplicar ritmo personalizado
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Este ritmo solo se aplica a la sesión actual y no se guarda.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
 
       {/* Exercise Recommendation (shown after REST completion) */}

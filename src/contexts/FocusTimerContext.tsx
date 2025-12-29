@@ -63,6 +63,7 @@ interface FocusTimerContextType {
   toggleTimer: () => void;
   skipToNextPhase: () => void;
   setPreset: (preset: PresetId) => void;
+  setCustomTimings: (workMinutes: number, restMinutes: number) => void; // Set custom timings (session-only, doesn't persist)
   setSoundEnabled: (enabled: boolean) => void;
   dismissEndOfFocusDialog: () => void; // Dismiss the end-of-focus dialog
   
@@ -168,6 +169,8 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
   );
   const [lastRestCompletion, setLastRestCompletion] = useState<number>(0);
   const [showEndOfFocusDialog, setShowEndOfFocusDialog] = useState<boolean>(false);
+  // Custom timings (session-only, doesn't persist)
+  const [customRestMinutes, setCustomRestMinutes] = useState<number | null>(null);
 
   // Sync with database settings
   useEffect(() => {
@@ -327,7 +330,9 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
       if (currentPhase === "work") {
         // WORK phase completed - automatically switch to REST and start timer
         setCurrentPhase("rest");
-        setTimeRemaining(config.restMinutes * 60);
+        // Use custom rest minutes if set, otherwise use preset config
+        const restMinutes = customRestMinutes ?? config.restMinutes;
+        setTimeRemaining(restMinutes * 60);
         
         if (isFreshTransition) {
           triggerNotificationAndSound(
@@ -426,6 +431,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     const config = getPresetConfig(preset);
     setCurrentPhase("work");
     setTimeRemaining(config.workMinutes * 60);
+    setCustomRestMinutes(null); // Clear custom timings when switching to preset
     setIsRunning(false);
     
     if (!isGuest) {
@@ -443,6 +449,31 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
       }
     }
   }, [isGuest, updateSettings, selectedPreset, getPresetConfig, isRunning]);
+
+  const setCustomTimings = useCallback((workMinutes: number, restMinutes: number) => {
+    // Prevent timing change while timer is running
+    if (isRunning) {
+      if (import.meta.env.DEV) {
+        console.warn("[FocusTimerContext] Attempted to change timings while timer is running");
+      }
+      return;
+    }
+
+    // Validate inputs
+    if (workMinutes < 1 || restMinutes < 1) {
+      if (import.meta.env.DEV) {
+        console.warn("[FocusTimerContext] Invalid timings: workMinutes and restMinutes must be >= 1");
+      }
+      return;
+    }
+
+    // Set custom timings (session-only, doesn't change selectedPreset)
+    // This allows temporary custom presets without persisting
+    setCurrentPhase("work");
+    setTimeRemaining(workMinutes * 60);
+    setCustomRestMinutes(restMinutes);
+    setIsRunning(false);
+  }, [isRunning]);
 
   const setSoundEnabled = useCallback(async (enabled: boolean) => {
     setSoundEnabledState(enabled);
@@ -482,6 +513,7 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     toggleTimer,
     skipToNextPhase,
     setPreset,
+    setCustomTimings,
     setSoundEnabled,
     dismissEndOfFocusDialog,
     getPresetConfig,

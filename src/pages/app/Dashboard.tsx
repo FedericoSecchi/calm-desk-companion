@@ -201,19 +201,19 @@ const Dashboard = () => {
             {isRunning ? (
               <button
                 onClick={handleTimerStatusClick}
-                className="bg-card rounded-xl p-4 border border-border/30 hover:border-border/50 transition-all text-left group cursor-pointer"
+                className="bg-primary/10 rounded-xl p-4 border-2 border-primary/30 hover:border-primary/50 transition-all text-left group cursor-pointer"
                 type="button"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-primary" />
+                  <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {formatTime(timeRemaining)} restantes
+                    <p className="text-sm font-bold text-primary mb-1">
+                      Estás en foco
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {currentPreset.name}
+                      {formatTime(timeRemaining)} restantes · {currentPreset.name}
                     </p>
                   </div>
                 </div>
