@@ -6,7 +6,8 @@ import {
   Activity, 
   Settings,
   Menu,
-  X
+  X,
+  Clock
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useState } from "react";
@@ -31,7 +32,56 @@ const AppLayout = () => {
   const { isGuest } = useAuth();
   
   // useFocusTimer is safe here because AppLayout is wrapped by FocusTimerProvider in App.tsx
-  const { showEndOfFocusDialog, dismissEndOfFocusDialog } = useFocusTimer();
+  const { 
+    showEndOfFocusDialog, 
+    dismissEndOfFocusDialog,
+    isRunning,
+    timeRemaining,
+    formatTime
+  } = useFocusTimer();
+  
+  // Helper to render Recordatorios nav item with timer state
+  const renderRemindersNavItem = (item: typeof navItems[1], isActive: boolean, isMobile: boolean = false) => {
+    const baseClasses = isMobile
+      ? cn(
+          "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
+          isActive ? "text-primary" : "text-muted-foreground"
+        )
+      : cn(
+          "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+          isActive
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        );
+    
+    if (isRunning) {
+      return (
+        <NavLink
+          to={item.to}
+          className={baseClasses}
+        >
+          <Clock className="h-5 w-5 text-primary" />
+          {isMobile ? (
+            <>
+              <span className="text-[10px] font-medium text-primary">{formatTime(timeRemaining)}</span>
+            </>
+          ) : (
+            <span className="text-primary font-medium">{formatTime(timeRemaining)}</span>
+          )}
+        </NavLink>
+      );
+    }
+    
+    return (
+      <NavLink
+        to={item.to}
+        className={baseClasses}
+      >
+        <item.icon className="h-5 w-5" />
+        {item.label}
+      </NavLink>
+    );
+  };
 
   return (
     <>
@@ -49,25 +99,32 @@ const AppLayout = () => {
         </div>
         <nav className="flex-1 px-4">
           <ul className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.to}>
-                <NavLink
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )
-                  }
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
+            {navItems.map((item) => {
+              const isReminders = item.to === "/app/reminders";
+              return (
+                <li key={item.to}>
+                  {isReminders ? (
+                    renderRemindersNavItem(item, location.pathname === item.to || location.pathname.startsWith(item.to))
+                  ) : (
+                    <NavLink
+                      to={item.to}
+                      end={item.end}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )
+                      }
+                    >
+                      <item.icon className="h-5 w-5" />
+                      {item.label}
+                    </NavLink>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </nav>
         <div className="p-4 mx-4 mb-4 bg-muted rounded-xl">
@@ -77,7 +134,7 @@ const AppLayout = () => {
         </div>
       </aside>
 
-      {/* Mobile Header */}
+      {/* Mobile Header - Fixed at top (h-16) to stay visible while scrolling */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-4">
         <Logo size="sm" />
         <button
@@ -111,26 +168,36 @@ const AppLayout = () => {
               </div>
               <nav className="flex-1 px-4">
                 <ul className="space-y-1">
-                  {navItems.map((item) => (
-                    <li key={item.to}>
-                      <NavLink
-                        to={item.to}
-                        end={item.end}
-                        onClick={() => setSidebarOpen(false)}
-                        className={({ isActive }) =>
-                          cn(
-                            "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                            isActive
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          )
-                        }
-                      >
-                        <item.icon className="h-5 w-5" />
-                        {item.label}
-                      </NavLink>
-                    </li>
-                  ))}
+                  {navItems.map((item) => {
+                    const isReminders = item.to === "/app/reminders";
+                    const isActive = location.pathname === item.to || location.pathname.startsWith(item.to);
+                    return (
+                      <li key={item.to}>
+                        {isReminders ? (
+                          <div onClick={() => setSidebarOpen(false)}>
+                            {renderRemindersNavItem(item, isActive)}
+                          </div>
+                        ) : (
+                          <NavLink
+                            to={item.to}
+                            end={item.end}
+                            onClick={() => setSidebarOpen(false)}
+                            className={({ isActive }) =>
+                              cn(
+                                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                                isActive
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                              )
+                            }
+                          >
+                            <item.icon className="h-5 w-5" />
+                            {item.label}
+                          </NavLink>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </nav>
             </motion.aside>
@@ -148,9 +215,11 @@ const AppLayout = () => {
           </div>
         )}
         
-        {/* Top Timer Bar - integrated at top of content */}
+        {/* Top Timer Bar - integrated in normal flow (not fixed) to avoid overlap with fixed mobile header */}
+        {/* Mobile header is fixed (h-16), so content has pt-16. Timer appears below header in normal flow */}
         <FloatingTimer />
         
+        {/* Content area: pt-16 on mobile for fixed header (h-16), pb-20 for fixed bottom nav (h-16) */}
         <div className="pt-16 lg:pt-0 pb-20 lg:pb-0 flex-1">
           <Outlet />
         </div>
@@ -160,24 +229,29 @@ const AppLayout = () => {
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40">
         <ul className="flex items-center justify-around h-16">
           {navItems.map((item) => {
+            const isReminders = item.to === "/app/reminders";
             const isActive = item.end 
               ? location.pathname === item.to 
               : location.pathname.startsWith(item.to);
             return (
               <li key={item.to}>
-                <NavLink
-                  to={item.to}
-                  end={item.end}
-                  className={cn(
-                    "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
-                    isActive
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">{item.label}</span>
-                </NavLink>
+                {isReminders ? (
+                  renderRemindersNavItem(item, isActive, true)
+                ) : (
+                  <NavLink
+                    to={item.to}
+                    end={item.end}
+                    className={cn(
+                      "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </NavLink>
+                )}
               </li>
             );
           })}

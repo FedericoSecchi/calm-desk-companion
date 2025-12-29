@@ -1,10 +1,14 @@
 /**
- * TopTimerBar Component
+ * FloatingTimer Component
  * 
  * Minimal, transparent timer bar integrated at the top of app content.
  * Visible when timer is running, hidden on /app/reminders.
  * 
  * Design: Calm, minimal, integrated - feels like part of the header.
+ * 
+ * Layout: Rendered in normal flow (not fixed) within AppLayout main content area.
+ * This avoids overlap with the fixed mobile header (h-16) and ensures proper spacing.
+ * The timer appears below the mobile header and above the page content.
  */
 
 import { motion, AnimatePresence } from "framer-motion";
