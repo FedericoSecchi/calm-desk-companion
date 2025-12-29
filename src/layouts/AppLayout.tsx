@@ -7,7 +7,8 @@ import {
   Settings,
   Menu,
   X,
-  Clock
+  Clock,
+  Play
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useState } from "react";
@@ -18,10 +19,22 @@ import { FloatingTimer } from "@/components/FloatingTimer";
 import { EndOfFocusDialog } from "@/components/EndOfFocusDialog";
 import { useFocusTimer } from "@/contexts/FocusTimerContext";
 
+// Navigation items for sidebars (desktop and mobile drawer)
 const navItems = [
   { to: "/app", icon: LayoutDashboard, label: "Inicio", end: true },
   { to: "/app/reminders", icon: Bell, label: "Recordatorios" },
   { to: "/app/exercises", icon: Dumbbell, label: "Ejercicios" },
+  { to: "/app/pain", icon: Activity, label: "Dolor" },
+  { to: "/app/settings", icon: Settings, label: "Ajustes" },
+];
+
+// Navigation items for bottom nav - split around center FAB
+const navItemsLeft = [
+  { to: "/app", icon: LayoutDashboard, label: "Inicio", end: true },
+  { to: "/app/exercises", icon: Dumbbell, label: "Ejercicios" },
+];
+
+const navItemsRight = [
   { to: "/app/pain", icon: Activity, label: "Dolor" },
   { to: "/app/settings", icon: Settings, label: "Ajustes" },
 ];
@@ -219,25 +232,23 @@ const AppLayout = () => {
         {/* Mobile header is fixed (h-16), so content has pt-16. Timer appears below header in normal flow */}
         <FloatingTimer />
         
-        {/* Content area: pt-16 on mobile for fixed header (h-16), pb-20 for fixed bottom nav (h-16) */}
-        <div className="pt-16 lg:pt-0 pb-20 lg:pb-0 flex-1">
+        {/* Content area: pt-16 on mobile for fixed header (h-16), pb-24 for fixed bottom nav (h-16) + FAB elevation */}
+        <div className="pt-16 lg:pt-0 pb-24 lg:pb-0 flex-1">
           <Outlet />
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40">
-        <ul className="flex items-center justify-around h-16">
-          {navItems.map((item) => {
-            const isReminders = item.to === "/app/reminders";
-            const isActive = item.end 
-              ? location.pathname === item.to 
-              : location.pathname.startsWith(item.to);
-            return (
-              <li key={item.to}>
-                {isReminders ? (
-                  renderRemindersNavItem(item, isActive, true)
-                ) : (
+      {/* Mobile Bottom Navigation with FAB */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40 pb-safe">
+        <div className="relative flex items-center justify-around h-16">
+          {/* Left side items */}
+          <ul className="flex items-center justify-around flex-1">
+            {navItemsLeft.map((item) => {
+              const isActive = item.end 
+                ? location.pathname === item.to 
+                : location.pathname.startsWith(item.to);
+              return (
+                <li key={item.to}>
                   <NavLink
                     to={item.to}
                     end={item.end}
@@ -251,11 +262,63 @@ const AppLayout = () => {
                     <item.icon className="h-5 w-5" />
                     <span className="text-[10px] font-medium">{item.label}</span>
                   </NavLink>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Center FAB - Timer button (prominent, elevated) */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-6">
+            <NavLink
+              to="/app/reminders"
+              className={cn(
+                "flex flex-col items-center justify-center",
+                "w-16 h-16 rounded-full",
+                "bg-primary text-primary-foreground",
+                "shadow-xl shadow-primary/30",
+                "transition-all hover:scale-105 active:scale-95",
+                "border-4 border-background",
+                location.pathname === "/app/reminders" || location.pathname.startsWith("/app/reminders")
+                  ? "ring-2 ring-primary ring-offset-2"
+                  : ""
+              )}
+            >
+              {isRunning ? (
+                <>
+                  <Clock className="h-6 w-6 mb-0.5" />
+                  <span className="text-[9px] font-bold leading-tight">
+                    {formatTime(timeRemaining)}
+                  </span>
+                </>
+              ) : (
+                <Play className="h-7 w-7" />
+              )}
+            </NavLink>
+          </div>
+
+          {/* Right side items */}
+          <ul className="flex items-center justify-around flex-1">
+            {navItemsRight.map((item) => {
+              const isActive = location.pathname.startsWith(item.to);
+              return (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    className={cn(
+                      "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </nav>
     </div>
     </>
