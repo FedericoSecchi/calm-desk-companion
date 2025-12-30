@@ -92,11 +92,11 @@ const AppLayout = () => {
         {/* Screen Break Banner - 20-20-20 rule during WORK phase */}
         <ScreenBreakBanner />
       {/* Header - Fixed at top (h-16) to stay visible while scrolling */}
-      <div className="fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-4">
+      <div className="fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-4" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <Logo size="sm" />
         <NavLink
           to="/app/settings"
-          className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm"
+          className="w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm touch-manipulation"
         >
           {getUserInitials()}
         </NavLink>
@@ -119,7 +119,10 @@ const AppLayout = () => {
       </main>
 
       {/* Bottom Navigation with FAB - Always visible */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40 pb-safe">
+      <nav 
+        className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      >
         <div className="grid grid-cols-5 items-center h-16 relative">
           {bottomNavItems.map((item, index) => {
             // Slot central (índice 2) - reservado para FAB
@@ -135,11 +138,12 @@ const AppLayout = () => {
                       }}
                       className={cn(
                         "flex flex-col items-center justify-center",
-                        "w-16 h-16 rounded-full",
+                        "w-16 h-16 rounded-full min-w-[44px] min-h-[44px]",
                         "bg-primary text-primary-foreground",
                         "shadow-xl shadow-primary/30",
-                        "transition-all hover:scale-105 active:scale-95",
-                        "border-4 border-background"
+                        "transition-transform active:scale-95",
+                        "border-4 border-background",
+                        "touch-manipulation"
                       )}
                       aria-label={isRunning ? `Pausar timer. ${safeFormatTime(timeRemaining)} restantes.` : `Iniciar timer. ${safeFormatTime(timeRemaining)} restantes.`}
                       disabled={!toggleTimer}
@@ -177,6 +181,7 @@ const AppLayout = () => {
                   end={item.end}
                   className={cn(
                     "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
+                    "min-w-[44px] min-h-[44px] touch-manipulation",
                     isActive
                       ? "text-primary"
                       : "text-muted-foreground"

@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile optimizations */
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 /* Calmo Design System - Warm, Calm, Minimalist */
 
 @layer base {
@@ -239,6 +251,14 @@
   
   /* Reduce motion support */
   @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    
     .animate-float,
     .animate-float-slow,
     .animate-pulse-soft,
