@@ -1,34 +1,40 @@
 /**
  * AppBackground Component
  * 
- * Global background layer for React Bits integration.
- * This component provides a container for animated/gradient backgrounds
- * that sit behind all UI elements without interfering with layout or interactions.
- * 
- * TODO: When ready, paste React Bits JS and CSS here.
- * The container is ready to accept React Bits background components.
+ * Global background layer with React Bits Aurora integration.
+ * Provides animated gradient background that sits behind all UI elements
+ * without interfering with layout or interactions.
  */
 
-import { ReactNode } from "react";
+import Aurora from "./Aurora";
 
 interface AppBackgroundProps {
-  children?: ReactNode;
+  colorStops?: string[];
+  amplitude?: number;
+  blend?: number;
+  time?: number;
+  speed?: number;
 }
 
-export const AppBackground = ({ children }: AppBackgroundProps) => {
+export const AppBackground = ({ 
+  colorStops = ['#5227FF', '#7cff67', '#5227FF'], 
+  amplitude = 1.0, 
+  blend = 0.5,
+  time,
+  speed = 1.0
+}: AppBackgroundProps) => {
   return (
     <div 
       className="fixed inset-0 -z-10 pointer-events-none overflow-hidden"
       aria-hidden="true"
     >
-      {/* React Bits background will be mounted here */}
-      {/* 
-        Example structure when React Bits is integrated:
-        <ReactBitsBackground>
-          {children}
-        </ReactBitsBackground>
-      */}
-      {children}
+      <Aurora 
+        colorStops={colorStops}
+        amplitude={amplitude}
+        blend={blend}
+        time={time}
+        speed={speed}
+      />
     </div>
   );
 };
