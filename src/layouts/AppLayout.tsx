@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { EndOfFocusDialog } from "@/components/EndOfFocusDialog";
 import { ScreenBreakBanner } from "@/components/ScreenBreakBanner";
+import { AppBackground } from "@/components/AppBackground";
 import { useFocusTimer } from "@/contexts/FocusTimerContext";
 
 // Navigation items for bottom nav - 5 columns: [Inicio, Ejercicios, FAB, Dolor, Ajustes]
@@ -77,6 +78,9 @@ const AppLayout = () => {
 
   return (
     <>
+      {/* Global Background Layer - React Bits will be mounted here */}
+      <AppBackground />
+      
       {/* End-of-Focus Dialog - visible from any route when REST phase completes */}
       <EndOfFocusDialog 
         open={showEndOfFocusDialog} 
@@ -86,7 +90,8 @@ const AppLayout = () => {
       {/* Screen Break Banner - 20-20-20 rule during WORK phase */}
       <ScreenBreakBanner />
       
-      <div className="min-h-screen bg-background">
+      {/* Main App Container - positioned relative to ensure z-index stacking */}
+      <div className="min-h-screen bg-background relative z-0">
       {/* Header - Fixed at top (h-16) to stay visible while scrolling */}
       <div className="fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-4">
         <Logo size="sm" />
