@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { EndOfFocusDialog } from "@/components/EndOfFocusDialog";
+import { ScreenBreakBanner } from "@/components/ScreenBreakBanner";
 import { useFocusTimer } from "@/contexts/FocusTimerContext";
 
 // Navigation items for sidebars (desktop and mobile drawer)
@@ -141,6 +142,9 @@ const AppLayout = () => {
         open={showEndOfFocusDialog} 
         onClose={dismissEndOfFocusDialog}
       />
+      
+      {/* Screen Break Banner - 20-20-20 rule during WORK phase */}
+      <ScreenBreakBanner />
       
       <div className="min-h-screen bg-background flex">
       {/* Desktop Sidebar */}

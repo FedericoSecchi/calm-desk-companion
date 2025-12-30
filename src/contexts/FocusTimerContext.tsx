@@ -56,6 +56,8 @@ interface FocusTimerContextType {
   lastRestCompletion: number; // Timestamp of last REST completion (for exercise recommendation)
   showEndOfFocusDialog: boolean; // Flag to show end-of-focus UI when REST completes
   providerId: string; // Unique ID to prove single provider instance
+  workElapsedSeconds: number; // Total WORK time elapsed (only increments during WORK phase when running)
+  screenBreak: ScreenBreakState;
   
   // Actions
   startTimer: () => void;
@@ -66,6 +68,8 @@ interface FocusTimerContextType {
   setCustomTimings: (workMinutes: number, restMinutes: number) => void; // Set custom timings (session-only, doesn't persist)
   setSoundEnabled: (enabled: boolean) => void;
   dismissEndOfFocusDialog: () => void; // Dismiss the end-of-focus dialog
+  dismissScreenBreak: () => void; // Dismiss screen break (Listo)
+  snoozeScreenBreak: () => void; // Snooze screen break for 5 minutes
   
   // Helpers
   getPresetConfig: (presetId: PresetId) => PresetConfig;
@@ -171,6 +175,32 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
   const [showEndOfFocusDialog, setShowEndOfFocusDialog] = useState<boolean>(false);
   // Custom timings (session-only, doesn't persist)
   const [customRestMinutes, setCustomRestMinutes] = useState<number | null>(null);
+  
+  // Screen break state
+  const SCREEN_BREAK_STORAGE_KEY = "calmo_screen_break_state";
+  const loadScreenBreakState = useCallback((): ScreenBreakState | null => {
+    try {
+      const stored = localStorage.getItem(SCREEN_BREAK_STORAGE_KEY);
+      if (!stored) return null;
+      const state = JSON.parse(stored);
+      // Check if it's from today (reset daily)
+      const today = new Date().toDateString();
+      if (state.date !== today) return null;
+      return state;
+    } catch (e) {
+      return null;
+    }
+  }, []);
+  
+  const savedScreenBreakState = loadScreenBreakState();
+  const [workElapsedSeconds, setWorkElapsedSeconds] = useState<number>(0);
+  const [screenBreak, setScreenBreak] = useState<ScreenBreakState>({
+    isOpen: false,
+    countdownSeconds: 20,
+    lastTriggerWorkElapsed: savedScreenBreakState?.lastTriggerWorkElapsed ?? 0,
+    snoozed: false,
+    snoozeTargetWorkElapsed: null,
+  });
 
   // Sync with database settings
   useEffect(() => {
@@ -265,11 +295,39 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     }
   }, [soundEnabled]);
 
+  // Helper to play subtle beep sound
+  const playBeep = useCallback((frequency: number = 800, duration: number = 0.1) => {
+    if (!soundEnabled) return;
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.value = frequency;
+      oscillator.type = "sine";
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration);
+    } catch (e) {
+      // Silent fail
+    }
+  }, [soundEnabled]);
+
   // Timer countdown logic - uses Date.now() diff for accuracy
+  const workStartTimeRef = useRef<number | null>(null);
+  const lastWorkElapsedRef = useRef<number>(0);
+  
   useEffect(() => {
     if (isRunning && timeRemaining > 0) {
       const startTime = Date.now();
       const startRemaining = timeRemaining;
+      
+      // Track work elapsed time
+      if (currentPhase === "work" && workStartTimeRef.current === null) {
+        workStartTimeRef.current = Date.now();
+      }
       
       intervalRef.current = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -277,6 +335,45 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
         const currentSecond = Math.floor(newRemaining);
         
         setTimeRemaining(newRemaining);
+        
+        // Track work elapsed seconds (only during WORK phase when running)
+        if (currentPhase === "work" && isRunning) {
+          if (workStartTimeRef.current === null) {
+            workStartTimeRef.current = Date.now();
+          }
+          const workElapsed = Math.floor((Date.now() - workStartTimeRef.current) / 1000) + lastWorkElapsedRef.current;
+          setWorkElapsedSeconds(workElapsed);
+          
+          // Check for 20-minute trigger (1200 seconds)
+          const SCREEN_BREAK_INTERVAL = 1200; // 20 minutes
+          const shouldTrigger = 
+            !screenBreak.isOpen &&
+            workElapsed >= SCREEN_BREAK_INTERVAL &&
+            Math.floor(workElapsed / SCREEN_BREAK_INTERVAL) > Math.floor(screenBreak.lastTriggerWorkElapsed / SCREEN_BREAK_INTERVAL);
+          
+          // Check for snooze trigger
+          const shouldTriggerSnooze = 
+            !screenBreak.isOpen &&
+            screenBreak.snoozeTargetWorkElapsed !== null &&
+            workElapsed >= screenBreak.snoozeTargetWorkElapsed;
+          
+          if (shouldTrigger || shouldTriggerSnooze) {
+            playBeep(600, 0.15);
+            setScreenBreak(prev => ({
+              isOpen: true,
+              countdownSeconds: 20,
+              lastTriggerWorkElapsed: workElapsed,
+              snoozed: shouldTriggerSnooze,
+              snoozeTargetWorkElapsed: null,
+            }));
+          }
+        } else {
+          // Reset work tracking when not in WORK phase
+          if (currentPhase !== "work") {
+            workStartTimeRef.current = null;
+            lastWorkElapsedRef.current = workElapsedSeconds;
+          }
+        }
         
         // Countdown alerts at 10, 5, 3, 2, 1 seconds
         const alertSeconds = [10, 5, 3, 2, 1];
@@ -309,12 +406,12 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
       lastCountdownSecondRef.current = -1; // Reset when paused
     }
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isRunning, timeRemaining, currentPhase, playCountdownSound, toast]);
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    }, [isRunning, timeRemaining, currentPhase, playCountdownSound, toast, screenBreak.isOpen, screenBreak.lastTriggerWorkElapsed, screenBreak.snoozeTargetWorkElapsed, workElapsedSeconds, playBeep]);
 
   // Handle timer completion and phase transitions
   useEffect(() => {
@@ -394,6 +491,51 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
       phaseTransitionRef.current = false;
     }
   }, [timeRemaining, isRunning, currentPhase, selectedPreset, getPresetConfig, triggerNotificationAndSound, toast, logBreak]);
+
+  // Screen break countdown logic
+  useEffect(() => {
+    if (screenBreak.isOpen && isRunning && currentPhase === "work" && screenBreak.countdownSeconds > 0) {
+      const countdownInterval = setInterval(() => {
+        setScreenBreak(prev => {
+          if (prev.countdownSeconds <= 1) {
+            // Auto-dismiss when countdown reaches 0
+            playBeep(800, 0.15);
+            const today = new Date().toDateString();
+            localStorage.setItem(SCREEN_BREAK_STORAGE_KEY, JSON.stringify({
+              date: today,
+              lastTriggerWorkElapsed: prev.lastTriggerWorkElapsed,
+            }));
+            return {
+              ...prev,
+              isOpen: false,
+              countdownSeconds: 20,
+            };
+          }
+          return {
+            ...prev,
+            countdownSeconds: prev.countdownSeconds - 1,
+          };
+        });
+      }, 1000);
+      
+      return () => clearInterval(countdownInterval);
+    }
+  }, [screenBreak.isOpen, screenBreak.countdownSeconds, isRunning, currentPhase, screenBreak.lastTriggerWorkElapsed, playBeep]);
+
+  // Reset work elapsed on phase transition
+  useEffect(() => {
+    if (currentPhase === "rest") {
+      workStartTimeRef.current = null;
+      lastWorkElapsedRef.current = workElapsedSeconds;
+    } else if (currentPhase === "work" && !isRunning) {
+      // When pausing, save current elapsed time
+      if (workStartTimeRef.current !== null) {
+        const elapsed = Math.floor((Date.now() - workStartTimeRef.current) / 1000);
+        lastWorkElapsedRef.current = workElapsedSeconds;
+        workStartTimeRef.current = null;
+      }
+    }
+  }, [currentPhase, isRunning, workElapsedSeconds]);
 
   // Actions
   const startTimer = useCallback(() => {
@@ -492,6 +634,30 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
   const dismissEndOfFocusDialog = useCallback(() => {
     setShowEndOfFocusDialog(false);
   }, []);
+  
+  const dismissScreenBreak = useCallback(() => {
+    const today = new Date().toDateString();
+    localStorage.setItem(SCREEN_BREAK_STORAGE_KEY, JSON.stringify({
+      date: today,
+      lastTriggerWorkElapsed: screenBreak.lastTriggerWorkElapsed,
+    }));
+    setScreenBreak(prev => ({
+      ...prev,
+      isOpen: false,
+      countdownSeconds: 20,
+    }));
+  }, [screenBreak.lastTriggerWorkElapsed]);
+  
+  const snoozeScreenBreak = useCallback(() => {
+    const snoozeTarget = workElapsedSeconds + 300; // 5 minutes = 300 seconds
+    setScreenBreak(prev => ({
+      ...prev,
+      isOpen: false,
+      countdownSeconds: 20,
+      snoozed: true,
+      snoozeTargetWorkElapsed: snoozeTarget,
+    }));
+  }, [workElapsedSeconds]);
 
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -508,6 +674,8 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     lastRestCompletion,
     showEndOfFocusDialog,
     providerId,
+    workElapsedSeconds,
+    screenBreak,
     startTimer,
     pauseTimer,
     toggleTimer,
@@ -516,6 +684,8 @@ export const FocusTimerProvider = ({ children }: FocusTimerProviderProps) => {
     setCustomTimings,
     setSoundEnabled,
     dismissEndOfFocusDialog,
+    dismissScreenBreak,
+    snoozeScreenBreak,
     getPresetConfig,
     formatTime,
   };
