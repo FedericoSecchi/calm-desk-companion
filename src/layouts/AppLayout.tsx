@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { 
   Home,
   Bell, 
@@ -29,13 +29,11 @@ const navItems = [
   { to: "/app/settings", icon: Settings, label: "Ajustes" },
 ];
 
-// Navigation items for bottom nav - split around center FAB
-const navItemsLeft = [
+// Navigation items for bottom nav - 5 columns: [Inicio, Ejercicios, FAB, Dolor, Ajustes]
+const bottomNavItems = [
   { to: "/app", icon: Home, label: "Inicio", end: true },
   { to: "/app/exercises", icon: Dumbbell, label: "Ejercicios" },
-];
-
-const navItemsRight = [
+  null, // Slot central reservado para FAB
   { to: "/app/pain", icon: Activity, label: "Dolor" },
   { to: "/app/settings", icon: Settings, label: "Ajustes" },
 ];
@@ -278,91 +276,74 @@ const AppLayout = () => {
 
       {/* Mobile Bottom Navigation with FAB */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40 pb-safe">
-        <div className="relative flex items-center justify-around h-16">
-          {/* Left side items */}
-          <ul className="flex items-center justify-around flex-1">
-            {navItemsLeft.map((item) => {
-              const isActive = item.end 
-                ? location.pathname === item.to 
-                : location.pathname.startsWith(item.to);
+        <div className="grid grid-cols-5 items-center h-16 relative">
+          {bottomNavItems.map((item, index) => {
+            // Slot central (índice 2) - reservado para FAB
+            if (item === null) {
               return (
-                <li key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    end={item.end}
-                    className={cn(
-                      "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
-                      isActive
-                        ? "text-primary"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    <span className="text-[10px] font-medium">{item.label}</span>
-                  </NavLink>
-                </li>
+                <div key="fab-slot" className="relative flex items-center justify-center h-full">
+                  {/* FAB - ÚNICO control del timer (play/pause) */}
+                  <div className="absolute -top-6 z-10">
+                    <button
+                      onClick={() => {
+                        safeToggleTimer();
+                        navigate("/app/reminders");
+                      }}
+                      className={cn(
+                        "flex flex-col items-center justify-center",
+                        "w-16 h-16 rounded-full",
+                        "bg-primary text-primary-foreground",
+                        "shadow-xl shadow-primary/30",
+                        "transition-all hover:scale-105 active:scale-95",
+                        "border-4 border-background"
+                      )}
+                      aria-label={isRunning ? `Pausar timer. ${safeFormatTime(timeRemaining)} restantes.` : `Iniciar timer. ${safeFormatTime(timeRemaining)} restantes.`}
+                      disabled={!toggleTimer}
+                    >
+                      {isRunning ? (
+                        <>
+                          <Pause className="h-6 w-6 mb-0.5" />
+                          <span className="text-[9px] font-bold leading-tight">
+                            {safeFormatTime(timeRemaining)}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-6 w-6 mb-0.5" />
+                          <span className="text-[9px] font-bold leading-tight">
+                            {safeFormatTime(timeRemaining)}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               );
-            })}
-          </ul>
+            }
 
-          {/* Center FAB - ÚNICO control del timer (play/pause) */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-10">
-            <button
-              onClick={() => {
-                safeToggleTimer();
-                navigate("/app/reminders");
-              }}
-              className={cn(
-                "flex flex-col items-center justify-center",
-                "w-16 h-16 rounded-full",
-                "bg-primary text-primary-foreground",
-                "shadow-xl shadow-primary/30",
-                "transition-all hover:scale-105 active:scale-95",
-                "border-4 border-background"
-              )}
-              aria-label={isRunning ? `Pausar timer. ${safeFormatTime(timeRemaining)} restantes.` : `Iniciar timer. ${safeFormatTime(timeRemaining)} restantes.`}
-              disabled={!toggleTimer}
-            >
-              {isRunning ? (
-                <>
-                  <Pause className="h-6 w-6 mb-0.5" />
-                  <span className="text-[9px] font-bold leading-tight">
-                    {safeFormatTime(timeRemaining)}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Play className="h-6 w-6 mb-0.5" />
-                  <span className="text-[9px] font-bold leading-tight">
-                    {safeFormatTime(timeRemaining)}
-                  </span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Right side items */}
-          <ul className="flex items-center justify-around flex-1">
-            {navItemsRight.map((item) => {
-              const isActive = location.pathname.startsWith(item.to);
-              return (
-                <li key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    className={cn(
-                      "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
-                      isActive
-                        ? "text-primary"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    <span className="text-[10px] font-medium">{item.label}</span>
-                  </NavLink>
-                </li>
-              );
-            })}
-          </ul>
+            // Botones laterales - centrados en sus columnas
+            const isActive = item.end 
+              ? location.pathname === item.to 
+              : location.pathname.startsWith(item.to);
+            
+            return (
+              <div key={item.to} className="flex items-center justify-center h-full">
+                <NavLink
+                  to={item.to}
+                  end={item.end}
+                  className={cn(
+                    "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
+                    isActive
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </NavLink>
+              </div>
+            );
+          })}
         </div>
       </nav>
     </div>
