@@ -25,8 +25,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { 
-  Play, 
-  Pause, 
   SkipForward, 
   Bell, 
   Volume2, 
@@ -65,7 +63,6 @@ const Reminders = () => {
     isRunning,
     selectedPreset,
     soundEnabled,
-    toggleTimer,
     skipToNextPhase,
     setPreset,
     setCustomTimings,
@@ -360,19 +357,6 @@ const Reminders = () => {
               <Volume2 className="h-5 w-5" />
             ) : (
               <VolumeX className="h-5 w-5" />
-            )}
-          </Button>
-          
-          <Button
-            variant="hero"
-            size="xl"
-            onClick={toggleTimer}
-            className="h-16 w-16 rounded-full p-0"
-          >
-            {isRunning ? (
-              <Pause className="h-6 w-6" />
-            ) : (
-              <Play className="h-6 w-6 ml-1" />
             )}
           </Button>
           

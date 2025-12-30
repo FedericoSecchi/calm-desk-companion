@@ -1,14 +1,15 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { 
-  LayoutDashboard, 
+  Home,
   Bell, 
   Dumbbell, 
   Activity, 
   Settings,
-  Menu,
   X,
   Clock,
-  Play
+  Play,
+  Pause,
+  User
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useState } from "react";
@@ -20,7 +21,7 @@ import { useFocusTimer } from "@/contexts/FocusTimerContext";
 
 // Navigation items for sidebars (desktop and mobile drawer)
 const navItems = [
-  { to: "/app", icon: LayoutDashboard, label: "Inicio", end: true },
+  { to: "/app", icon: Home, label: "Inicio", end: true },
   { to: "/app/reminders", icon: Bell, label: "Recordatorios" },
   { to: "/app/exercises", icon: Dumbbell, label: "Ejercicios" },
   { to: "/app/pain", icon: Activity, label: "Dolor" },
@@ -29,7 +30,7 @@ const navItems = [
 
 // Navigation items for bottom nav - split around center FAB
 const navItemsLeft = [
-  { to: "/app", icon: LayoutDashboard, label: "Inicio", end: true },
+  { to: "/app", icon: Home, label: "Inicio", end: true },
   { to: "/app/exercises", icon: Dumbbell, label: "Ejercicios" },
 ];
 
@@ -41,16 +42,54 @@ const navItemsRight = [
 const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const { isGuest } = useAuth();
+  const navigate = useNavigate();
+  const { isGuest, user } = useAuth();
   
   // useFocusTimer is safe here because AppLayout is wrapped by FocusTimerProvider in App.tsx
   const { 
     showEndOfFocusDialog, 
     dismissEndOfFocusDialog,
-    isRunning,
-    timeRemaining,
-    formatTime
+    isRunning = false,
+    timeRemaining = 0,
+    formatTime,
+    toggleTimer
   } = useFocusTimer();
+
+  // Defensive: ensure formatTime exists and handles edge cases
+  const safeFormatTime = (seconds: number | undefined | null): string => {
+    if (formatTime && typeof formatTime === 'function') {
+      return formatTime(seconds ?? 0);
+    }
+    // Fallback formatter
+    const safeSeconds = Math.max(0, seconds ?? 0);
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = safeSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Defensive: ensure toggleTimer exists
+  const safeToggleTimer = () => {
+    if (toggleTimer && typeof toggleTimer === 'function') {
+      toggleTimer();
+    } else if (import.meta.env.DEV) {
+      console.warn("[AppLayout] toggleTimer not available");
+    }
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user?.email) return "U";
+    try {
+      const email = user.email;
+      const name = email.split("@")[0];
+      if (name.length >= 2) {
+        return name.substring(0, 2).toUpperCase();
+      }
+      return name.charAt(0).toUpperCase();
+    } catch (e) {
+      return "U";
+    }
+  };
   
   // Helper to render Recordatorios nav item with timer state
   const renderRemindersNavItem = (item: typeof navItems[1], isActive: boolean, isMobile: boolean = false) => {
@@ -75,10 +114,10 @@ const AppLayout = () => {
           <Clock className="h-5 w-5 text-primary" />
           {isMobile ? (
             <>
-              <span className="text-[10px] font-medium text-primary">{formatTime(timeRemaining)}</span>
+              <span className="text-[10px] font-medium text-primary">{safeFormatTime(timeRemaining)}</span>
             </>
           ) : (
-            <span className="text-primary font-medium">{formatTime(timeRemaining)}</span>
+            <span className="text-primary font-medium">{safeFormatTime(timeRemaining)}</span>
           )}
         </NavLink>
       );
@@ -149,12 +188,12 @@ const AppLayout = () => {
       {/* Mobile Header - Fixed at top (h-16) to stay visible while scrolling */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-4">
         <Logo size="sm" />
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg hover:bg-muted transition-colors"
+        <NavLink
+          to="/app/settings"
+          className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm"
         >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+          {getUserInitials()}
+        </NavLink>
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -262,34 +301,40 @@ const AppLayout = () => {
             })}
           </ul>
 
-          {/* Center FAB - Timer button (prominent, elevated) */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-6">
-            <NavLink
-              to="/app/reminders"
+          {/* Center FAB - ÚNICO control del timer (play/pause) */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-10">
+            <button
+              onClick={() => {
+                safeToggleTimer();
+                navigate("/app/reminders");
+              }}
               className={cn(
                 "flex flex-col items-center justify-center",
                 "w-16 h-16 rounded-full",
                 "bg-primary text-primary-foreground",
                 "shadow-xl shadow-primary/30",
                 "transition-all hover:scale-105 active:scale-95",
-                "border-4 border-background",
-                location.pathname === "/app/reminders" || location.pathname.startsWith("/app/reminders")
-                  ? "ring-2 ring-primary ring-offset-2"
-                  : ""
+                "border-4 border-background"
               )}
-              aria-label={isRunning ? `Timer activo: ${formatTime(timeRemaining)} restantes. Ir a Recordatorios.` : "Iniciar foco. Ir a Recordatorios."}
+              aria-label={isRunning ? `Pausar timer. ${safeFormatTime(timeRemaining)} restantes.` : `Iniciar timer. ${safeFormatTime(timeRemaining)} restantes.`}
+              disabled={!toggleTimer}
             >
               {isRunning ? (
                 <>
-                  <Clock className="h-6 w-6 mb-0.5" />
+                  <Pause className="h-6 w-6 mb-0.5" />
                   <span className="text-[9px] font-bold leading-tight">
-                    {formatTime(timeRemaining)}
+                    {safeFormatTime(timeRemaining)}
                   </span>
                 </>
               ) : (
-                <Play className="h-7 w-7" />
+                <>
+                  <Play className="h-6 w-6 mb-0.5" />
+                  <span className="text-[9px] font-bold leading-tight">
+                    {safeFormatTime(timeRemaining)}
+                  </span>
+                </>
               )}
-            </NavLink>
+            </button>
           </div>
 
           {/* Right side items */}

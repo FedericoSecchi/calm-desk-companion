@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
-  Flame, 
   Activity, 
   Droplets, 
   Play, 
@@ -9,9 +8,11 @@ import {
   Plus,
   Minus,
   Loader2,
-  Clock
+  Clock,
+  Pause,
+  Brain
 } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useWaterLogs } from "@/hooks/useWaterLogs";
 import { useManualBreakAdjustments } from "@/hooks/useManualBreakAdjustments";
@@ -21,22 +22,34 @@ import { useFocusTimer } from "@/contexts/FocusTimerContext";
 
 const Dashboard = () => {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const stats = useDashboardStats();
   const { addWaterGlass, removeWaterGlass, isAdding: isAddingWater } = useWaterLogs();
   const { adjustToday } = useManualBreakAdjustments();
-  const { isRunning, timeRemaining, selectedPreset, formatTime, getPresetConfig } = useFocusTimer();
+  const { 
+    isRunning = false, 
+    timeRemaining = 0, 
+    currentPhase = "work", 
+    selectedPreset = "standard", 
+    formatTime, 
+    getPresetConfig 
+  } = useFocusTimer();
   
-  const handleStartFocus = () => {
-    navigate("/app/reminders?from=dashboard", { replace: false });
+  // Defensive: ensure formatTime exists and handles edge cases
+  const safeFormatTime = (seconds: number | undefined | null): string => {
+    if (formatTime && typeof formatTime === 'function') {
+      return formatTime(seconds ?? 0);
+    }
+    // Fallback formatter
+    const safeSeconds = Math.max(0, seconds ?? 0);
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = safeSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-
-  const handleTimerStatusClick = () => {
-    navigate("/app/reminders", { replace: false });
-  };
-
+  
   // Get preset config (getPresetConfig has built-in fallback to standard)
-  const currentPreset = getPresetConfig(selectedPreset);
+  const currentPreset = (getPresetConfig && typeof getPresetConfig === 'function') 
+    ? getPresetConfig(selectedPreset) 
+    : { name: "Ritmo Balanceado", workMinutes: 45, restMinutes: 5 };
 
   const handleAddWater = () => {
     addWaterGlass();
@@ -62,18 +75,13 @@ const Dashboard = () => {
     });
   };
 
-  // Separate today's actions from historical progress
+  // Today's stats
   const todayStats = useMemo(() => ({
     breaks: stats.breaksToday,
     water: stats.waterToday,
     timerBreaks: stats.timerBreaksToday,
     manualAdjustment: stats.manualAdjustment,
   }), [stats.breaksToday, stats.waterToday, stats.timerBreaksToday, stats.manualAdjustment]);
-
-  const historicalStats = useMemo(() => ({
-    streak: stats.streak,
-    lastPain: stats.lastPain,
-  }), [stats.streak, stats.lastPain]);
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
@@ -82,7 +90,7 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mb-8"
+        className="mb-6"
       >
         <h1 className="font-heading text-2xl lg:text-3xl text-foreground">
           ¡Hola! 👋
@@ -90,6 +98,39 @@ const Dashboard = () => {
         <p className="text-muted-foreground mt-1">
           Tu día de hoy
         </p>
+      </motion.div>
+
+      {/* Timer Card - Large, visual only, first element */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="mb-6"
+      >
+        <div className="bg-card rounded-2xl p-6 border border-border/30">
+          <div className="flex flex-col items-center text-center">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+              isRunning ? "bg-primary/10" : "bg-muted"
+            }`}>
+              {isRunning ? (
+                <Clock className="h-8 w-8 text-primary" />
+              ) : (
+                <Pause className="h-8 w-8 text-muted-foreground" />
+              )}
+            </div>
+            <p className="text-4xl font-bold text-foreground mb-2">
+              {safeFormatTime(timeRemaining)}
+            </p>
+            <p className={`text-lg font-medium mb-1 ${
+              isRunning ? "text-primary" : "text-muted-foreground"
+            }`}>
+              {isRunning ? "Estás en foco" : "En pausa"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {currentPreset?.name || "Ritmo Balanceado"} • {currentPhase === "work" ? "Trabajo" : "Descanso"}
+            </p>
+          </div>
+        </div>
       </motion.div>
 
       {/* HOY Section - Primary Focus */}
@@ -197,8 +238,8 @@ const Dashboard = () => {
           <h3 className="font-heading text-base text-foreground/80 mb-3">
             ¿Qué querés hacer hoy?
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-            {/* Left column - Dolor (always present) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Dolor */}
             <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
               <Link to="/app/pain">
                 <Activity className="h-5 w-5 mr-3" />
@@ -209,42 +250,7 @@ const Dashboard = () => {
               </Link>
             </Button>
 
-            {/* Center column - Fixed slot: Iniciar foco OR Estás en foco */}
-            {isRunning ? (
-              <div
-                onClick={handleTimerStatusClick}
-                className="bg-card rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center cursor-pointer hover:border-border/70 transition-colors h-auto min-h-[80px]"
-              >
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                </div>
-                <p className="text-sm font-medium text-foreground mb-1">
-                  Estás en foco
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatTime(timeRemaining)} restantes
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {currentPreset.name}
-                </p>
-              </div>
-            ) : (
-              <Button 
-                variant="warm" 
-                size="lg" 
-                className="justify-start h-auto py-4 w-full"
-                onClick={handleStartFocus}
-                type="button"
-              >
-                <Play className="h-5 w-5 mr-3" />
-                <div className="text-left">
-                  <p className="font-medium">Iniciar foco</p>
-                  <p className="text-xs opacity-80">Elige tu ritmo de trabajo</p>
-                </div>
-              </Button>
-            )}
-
-            {/* Right column - Ejercicios (always present) */}
+            {/* Ejercicios */}
             <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
               <Link to="/app/exercises">
                 <Play className="h-5 w-5 mr-3" />
@@ -254,55 +260,22 @@ const Dashboard = () => {
                 </div>
               </Link>
             </Button>
+
+            {/* Meditación - Placeholder */}
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="justify-start h-auto py-4 opacity-50 cursor-not-allowed"
+              disabled
+            >
+              <Brain className="h-5 w-5 mr-3" />
+              <div className="text-left">
+                <p className="font-medium">Meditación</p>
+                <p className="text-xs text-muted-foreground">Próximamente</p>
+              </div>
+            </Button>
           </div>
         </motion.div>
-      </section>
-
-      {/* Historical Progress Section - Secondary, Lighter */}
-      <section className="opacity-75">
-        <h2 className="font-heading text-base text-foreground/70 mb-4">
-          Venís sosteniendo
-        </h2>
-        
-        <div className="grid grid-cols-2 gap-4">
-          {/* Racha */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="bg-card/50 rounded-xl p-4 border border-border/20"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-7 h-7 rounded-lg bg-secondary/5 flex items-center justify-center">
-                <Flame className="h-4 w-4 text-secondary/70" />
-              </div>
-            </div>
-            <p className="text-2xl font-heading text-foreground/80">
-              {historicalStats.streak}
-            </p>
-            <p className="text-xs text-muted-foreground">días consecutivos</p>
-          </motion.div>
-
-          {/* Último registro corporal */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.35 }}
-            className="bg-card/50 rounded-xl p-4 border border-border/20"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-7 h-7 rounded-lg bg-destructive/5 flex items-center justify-center">
-                <Activity className="h-4 w-4 text-destructive/60" />
-              </div>
-            </div>
-            <p className="text-2xl font-heading text-foreground/80">
-              {historicalStats.lastPain ? `${historicalStats.lastPain.intensity}/10` : "—"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {historicalStats.lastPain ? `Último registro (${historicalStats.lastPain.area})` : "Sin registros"}
-            </p>
-          </motion.div>
-        </div>
       </section>
     </div>
   );
