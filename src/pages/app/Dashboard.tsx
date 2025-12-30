@@ -84,7 +84,7 @@ const Dashboard = () => {
   }), [stats.breaksToday, stats.waterToday, stats.timerBreaksToday, stats.manualAdjustment]);
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 lg:p-8 max-w-[420px] md:max-w-[520px] lg:max-w-[640px] mx-auto">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -238,7 +238,7 @@ const Dashboard = () => {
           <h3 className="font-heading text-base text-foreground/80 mb-3">
             ¿Qué querés hacer hoy?
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="flex flex-col gap-3">
             {/* Dolor */}
             <Button variant="outline" size="lg" className="justify-start h-auto py-4" asChild>
               <Link to="/app/pain">

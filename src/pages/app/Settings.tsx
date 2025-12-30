@@ -14,7 +14,7 @@ const Settings = () => {
   };
 
   return (
-    <div className="p-4 lg:p-8 max-w-2xl mx-auto">
+    <div className="p-4 md:p-6 lg:p-8 max-w-[420px] md:max-w-[520px] lg:max-w-[640px] mx-auto">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <h1 className="font-heading text-2xl lg:text-3xl text-foreground">Ajustes</h1>
       </motion.div>
