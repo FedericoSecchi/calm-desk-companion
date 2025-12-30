@@ -78,20 +78,19 @@ const AppLayout = () => {
 
   return (
     <>
-      {/* Global Background Layer - React Bits will be mounted here */}
+      {/* Global Background Layer - Aurora animated background */}
       <AppBackground />
       
-      {/* End-of-Focus Dialog - visible from any route when REST phase completes */}
-      <EndOfFocusDialog 
-        open={showEndOfFocusDialog} 
-        onClose={dismissEndOfFocusDialog}
-      />
-      
-      {/* Screen Break Banner - 20-20-20 rule during WORK phase */}
-      <ScreenBreakBanner />
-      
-      {/* Main App Container - positioned relative to ensure z-index stacking */}
-      <div className="min-h-screen bg-background relative z-0">
+      {/* Main App Container - positioned relative with z-index to stay above background */}
+      <div className="relative z-10 min-h-screen bg-background">
+        {/* End-of-Focus Dialog - visible from any route when REST phase completes */}
+        <EndOfFocusDialog 
+          open={showEndOfFocusDialog} 
+          onClose={dismissEndOfFocusDialog}
+        />
+        
+        {/* Screen Break Banner - 20-20-20 rule during WORK phase */}
+        <ScreenBreakBanner />
       {/* Header - Fixed at top (h-16) to stay visible while scrolling */}
       <div className="fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-4">
         <Logo size="sm" />

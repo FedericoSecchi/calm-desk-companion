@@ -142,9 +142,8 @@ export default function Aurora(props: AuroraProps) {
     let program: Program | null = null;
 
     function resize() {
-      if (!ctn) return;
-      const width = ctn.offsetWidth;
-      const height = ctn.offsetHeight;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
       renderer.setSize(width, height);
       if (program) {
         program.uniforms.uResolution.value = [width, height];
@@ -169,7 +168,7 @@ export default function Aurora(props: AuroraProps) {
         uTime: { value: 0 },
         uAmplitude: { value: amplitude },
         uColorStops: { value: colorStopsArray },
-        uResolution: { value: [ctn.offsetWidth, ctn.offsetHeight] },
+        uResolution: { value: [window.innerWidth, window.innerHeight] },
         uBlend: { value: blend }
       }
     });

@@ -25,7 +25,8 @@ export const AppBackground = ({
 }: AppBackgroundProps) => {
   return (
     <div 
-      className="fixed inset-0 -z-10 pointer-events-none overflow-hidden"
+      id="app-background"
+      className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none"
       aria-hidden="true"
     >
       <Aurora 
